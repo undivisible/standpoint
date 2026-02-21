@@ -1,12 +1,14 @@
 /**
  * On-device AI module using Chrome's built-in Prompt API (LanguageModel).
  *
- * This uses Gemini Nano running locally in the browser — no API keys,
- * no network calls for inference, and no cost.
+ * This uses Gemini Nano (Chrome) or Phi 4 mini (Edge) running locally in
+ * the browser — no API keys, no network calls for inference, and no cost.
  *
- * The API is only available in Chromium-based browsers that ship the
- * built-in AI feature. We detect availability at runtime and expose a
- * simple boolean store so the UI can adapt.
+ * The API has gone through several namespace iterations:
+ *   - `window.ai.languageModel` — older Chrome Canary builds
+ *   - `LanguageModel` (global)   — Chrome 138+ / Edge 138+
+ *
+ * We detect both and prefer the newer global.
  *
  * Reference: https://developer.chrome.com/docs/ai/prompt-api
  */
@@ -21,9 +23,12 @@ type Availability = 'available' | 'downloadable' | 'downloading' | 'unavailable'
 
 interface LanguageModelCreateOptions {
 	initialPrompts?: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+	expectedInputs?: Array<{ type: string; languages?: string[] }>;
+	expectedOutputs?: Array<{ type: string; languages?: string[] }>;
 	temperature?: number;
 	topK?: number;
 	signal?: AbortSignal;
+	monitor?: (monitor: EventTarget) => void;
 }
 
 interface LanguageModelSession {
@@ -40,7 +45,12 @@ interface LanguageModelAPI {
 }
 
 declare global {
+	// Chrome 138+ exposes LanguageModel as a global
+	// eslint-disable-next-line no-var
+	var LanguageModel: LanguageModelAPI | undefined;
+
 	interface Window {
+		// Older namespace (Chrome Canary / early builds)
 		ai?: {
 			languageModel?: LanguageModelAPI;
 		};
@@ -58,10 +68,28 @@ export const onDeviceAIAvailable = writable<boolean>(false);
 export const onDeviceAIStatus = writable<string>('checking');
 
 // ---------------------------------------------------------------------------
-// Detection
+// Internal helpers
 // ---------------------------------------------------------------------------
 
 let _available = false;
+
+/**
+ * Resolve the LanguageModel API from whichever namespace is present.
+ * Prefers the newer global `LanguageModel` over `window.ai.languageModel`.
+ */
+function getLanguageModelAPI(): LanguageModelAPI | null {
+	if (typeof globalThis !== 'undefined' && globalThis.LanguageModel) {
+		return globalThis.LanguageModel;
+	}
+	if (typeof window !== 'undefined' && window.ai?.languageModel) {
+		return window.ai.languageModel;
+	}
+	return null;
+}
+
+// ---------------------------------------------------------------------------
+// Detection
+// ---------------------------------------------------------------------------
 
 /**
  * Check whether the browser supports the on-device Prompt API.
@@ -76,14 +104,17 @@ export async function detectOnDeviceAI(): Promise<boolean> {
 	}
 
 	try {
-		const lm = window.ai?.languageModel;
+		const lm = getLanguageModelAPI();
 		if (!lm) {
 			onDeviceAIStatus.set('unavailable');
 			onDeviceAIAvailable.set(false);
 			return false;
 		}
 
-		const status = await lm.availability();
+		const status = await lm.availability({
+			expectedInputs: [{ type: 'text', languages: ['en'] }],
+			expectedOutputs: [{ type: 'text', languages: ['en'] }]
+		});
 
 		if (status === 'unavailable') {
 			onDeviceAIStatus.set('unavailable');
@@ -111,7 +142,7 @@ export async function detectOnDeviceAI(): Promise<boolean> {
 let _session: LanguageModelSession | null = null;
 
 async function getSession(): Promise<LanguageModelSession> {
-	const lm = window.ai?.languageModel;
+	const lm = getLanguageModelAPI();
 	if (!lm) throw new Error('On-device AI not available');
 
 	if (!_session) {
@@ -123,7 +154,9 @@ async function getSession(): Promise<LanguageModelSession> {
 						'You are a helpful assistant that suggests items for tier lists. ' +
 						'You always respond with valid JSON and nothing else.'
 				}
-			]
+			],
+			expectedInputs: [{ type: 'text', languages: ['en'] }],
+			expectedOutputs: [{ type: 'text', languages: ['en'] }]
 		});
 	}
 	return _session;
