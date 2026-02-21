@@ -41,13 +41,6 @@
 	// Dynamic viewport-fit sizing for polygons
 	let polyPixelSize = 0; // computed square side in px
 	let windowHeight = typeof window !== 'undefined' ? window.innerHeight : 900;
-	if (typeof window !== 'undefined') {
-		window.addEventListener('resize', () => {
-			windowWidth = window.innerWidth;
-			windowHeight = window.innerHeight;
-			computePolySize();
-		});
-	}
 
 	function computePolySize() {
 		if (!(chartData?.poll?.response_type >= 3)) return;
@@ -93,15 +86,25 @@
 		});
 	}
 
+	function handleResize() {
+		windowWidth = window.innerWidth;
+		windowHeight = window.innerHeight;
+		computePolySize();
+	}
+
 	onMount(() => {
 		computePolySize();
 		// Recompute after initial layout settling
 		setTimeout(() => computePolySize(), 60);
 		if (typeof window !== 'undefined') {
 			window.addEventListener('scroll', handleScroll, { passive: true });
+			window.addEventListener('resize', handleResize);
 		}
 		return () => {
-			if (typeof window !== 'undefined') window.removeEventListener('scroll', handleScroll);
+			if (typeof window !== 'undefined') {
+				window.removeEventListener('scroll', handleScroll);
+				window.removeEventListener('resize', handleResize);
+			}
 		};
 	});
 
@@ -111,11 +114,6 @@
 	let containerEl: HTMLDivElement | null = null;
 	let polyContainerEl: HTMLDivElement | null = null;
 	let windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-	if (typeof window !== 'undefined') {
-		window.addEventListener('resize', () => {
-			windowWidth = window.innerWidth;
-		});
-	}
 	let cWidth = 0,
 		cHeight = 0;
 	let polyWidth = 0;

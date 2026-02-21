@@ -1,26 +1,66 @@
 {
-	// Example:
-	//
-	// "indexes": [
-	//   {
-	//     "collectionGroup": "widgets",
-	//     "queryScope": "COLLECTION",
-	//     "fields": [
-	//       { "fieldPath": "foo", "arrayConfig": "CONTAINS" },
-	//       { "fieldPath": "bar", "mode": "DESCENDING" }
-	//     ]
-	//   },
-	//
-	//  "fieldOverrides": [
-	//    {
-	//      "collectionGroup": "widgets",
-	//      "fieldPath": "baz",
-	//      "indexes": [
-	//        { "order": "ASCENDING", "queryScope": "COLLECTION" }
-	//      ]
-	//    },
-	//   ]
-	// ]
-	"indexes": [],
+	"indexes": [
+		{
+			"collectionGroup": "tierlists",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "owner", "order": "ASCENDING" },
+				{ "fieldPath": "created_at", "order": "DESCENDING" }
+			]
+		},
+		{
+			"collectionGroup": "tierlists",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "owner", "order": "ASCENDING" },
+				{ "fieldPath": "status", "order": "ASCENDING" },
+				{ "fieldPath": "created_at", "order": "DESCENDING" }
+			]
+		},
+		{
+			"collectionGroup": "tierlists",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "owner", "order": "ASCENDING" },
+				{ "fieldPath": "isForked", "order": "ASCENDING" },
+				{ "fieldPath": "created_at", "order": "DESCENDING" }
+			]
+		},
+		{
+			"collectionGroup": "tierlists",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "owner", "order": "ASCENDING" },
+				{ "fieldPath": "status", "order": "ASCENDING" },
+				{ "fieldPath": "updated_at", "order": "DESCENDING" }
+			]
+		},
+		{
+			"collectionGroup": "tierlists",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "originalId", "order": "ASCENDING" },
+				{ "fieldPath": "status", "order": "ASCENDING" },
+				{ "fieldPath": "created_at", "order": "DESCENDING" }
+			]
+		},
+		{
+			"collectionGroup": "polls",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{ "fieldPath": "owner", "order": "ASCENDING" },
+				{ "fieldPath": "created_at", "order": "DESCENDING" }
+			]
+		},
+		{
+			"collectionGroup": "notifications",
+			"queryScope": "COLLECTION_GROUP",
+			"fields": [
+				{ "fieldPath": "bundleKey", "order": "ASCENDING" },
+				{ "fieldPath": "read", "order": "ASCENDING" },
+				{ "fieldPath": "timestamp", "order": "DESCENDING" }
+			]
+		}
+	],
 	"fieldOverrides": []
 }

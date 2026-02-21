@@ -66,7 +66,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		return new Response(JSON.stringify({ id: docRef.id }), { status: 201 });
 	} catch (e: unknown) {
-		return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
+		console.error('Tierlist creation error:', e);
+		return new Response(JSON.stringify({ error: 'Failed to create tierlist' }), {
 			status: 500
 		});
 	}

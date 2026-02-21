@@ -145,11 +145,16 @@
 		}
 	];
 
-	onMount(async () => {
-		await loadPolls();
+	onMount(() => {
+		loadPolls();
 		if (typeof window !== 'undefined') {
 			window.addEventListener('resize', updateViewport);
 		}
+		return () => {
+			if (typeof window !== 'undefined') {
+				window.removeEventListener('resize', updateViewport);
+			}
+		};
 	});
 
 	async function loadPolls() {
@@ -322,10 +327,8 @@
 						user_vote: position,
 						user_vote_2d: position2D || null
 					};
+					polls = [...polls];
 				}
-
-				await loadPolls();
-				selectedPoll = polls.find((p) => p.id === selectedPoll.id);
 			} else {
 				// Fallback to backend API for non-Firebase users
 				const voteData: any = { position };
@@ -486,7 +489,6 @@
 		// Ensure positions2D is in the correct format for the chart renderer
 		let positions2D: Array<{ x: number; y: number; id?: string }> = [];
 		if (stats.vote_positions_2d && Array.isArray(stats.vote_positions_2d)) {
-			console.log('Raw positions2D:', stats.vote_positions_2d);
 			positions2D = stats.vote_positions_2d.map((pos: any, i: number) => {
 				if (typeof pos === 'object' && pos !== null) {
 					return {
@@ -497,7 +499,6 @@
 				}
 				return { x: 0.5, y: 0.5, id: `vote-${i}` };
 			});
-			console.log('Processed positions2D:', positions2D);
 		}
 
 		const average = stats.average || 0;

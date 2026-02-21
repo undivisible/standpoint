@@ -13,7 +13,8 @@ import {
 	query,
 	orderBy,
 	serverTimestamp,
-	limit
+	limit,
+	increment
 } from 'firebase/firestore';
 
 // Helper function to clean undefined values
@@ -473,11 +474,8 @@ export async function likeTierlist(tierlistId: string, userId: string): Promise<
 			created_at: serverTimestamp()
 		});
 
-		const likesSnap = await getDocs(collection(db, 'tierlists', tierlistId, 'likes'));
-		const likeCount = likesSnap.size;
-
 		await updateDoc(doc(db, 'tierlists', tierlistId), {
-			likes: likeCount
+			likes: increment(1)
 		});
 
 		const tierlistData = tierlistDoc.data();

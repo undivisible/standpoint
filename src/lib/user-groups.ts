@@ -2,9 +2,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 export async function getUserGroup(uid: string): Promise<string | null> {
-	console.log('[getUserGroup] called with uid:', uid);
 	if (!uid) {
-		console.warn('[getUserGroup] Invalid uid:', uid);
 		return null;
 	}
 	const userDoc = await getDoc(doc(db, 'users', uid));

@@ -30,6 +30,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		'camera=(), microphone=(), geolocation=(), interest-cohort=()'
 	);
 	response.headers.set('X-XSS-Protection', '1; mode=block');
+	response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
 
 	return response;
 };

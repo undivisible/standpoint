@@ -85,6 +85,15 @@ export async function changeUserUid(currentUid: string, newUid: string): Promise
 		);
 	}
 
+	// Block reserved UIDs
+	const reserved = [
+		'admin', 'root', 'system', 'moderator', 'bot', 'support',
+		'official', 'standpoint', 'null', 'undefined', 'anonymous'
+	];
+	if (reserved.includes(newUid.toLowerCase())) {
+		throw new Error('This UID is reserved and cannot be used');
+	}
+
 	// Check if new UID already exists
 	const existingUser = await getUserProfile(newUid);
 	if (existingUser) {

@@ -1,4 +1,9 @@
 export function fadeImage(node: HTMLImageElement) {
+	// Enable native lazy loading on all images using this action
+	if (!node.hasAttribute('loading')) {
+		node.loading = 'lazy';
+	}
+
 	function handleLoaded() {
 		requestAnimationFrame(() => {
 			node.classList.add('sp-fade-image-loaded');

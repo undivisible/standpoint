@@ -69,9 +69,10 @@ export function sanitizeImageUrl(url: string): string {
 		];
 
 		if (urlObj.origin !== window.location.origin) {
-			const isAllowed = allowedDomains.some((domain) => urlObj.hostname.endsWith(domain));
+			const isAllowed = allowedDomains.some(
+				(domain) => urlObj.hostname === domain || urlObj.hostname.endsWith('.' + domain)
+			);
 			if (!isAllowed) {
-				console.warn('Blocked image from untrusted domain:', urlObj.hostname);
 				return '';
 			}
 		}

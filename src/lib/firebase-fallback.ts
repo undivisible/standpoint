@@ -253,24 +253,14 @@ export class FirebaseFallbackClient {
 	}
 
 	async getTierList(id: string): Promise<TierListResponse> {
-		console.log(`🔥🔥🔥 FIREBASE FALLBACK ${Date.now()} 🔥🔥🔥`);
-		console.log('=== FIREBASE FALLBACK getTierList CALLED ===');
-		console.log('Fallback getTierList called with ID:', id);
 		try {
-			console.log('Firebase getTierList called with ID:', id);
-			console.log('Firebase db instance:', db);
-
 			const tierListDoc = await getDoc(doc(db, 'tierlists', id));
-			console.log('Firebase document retrieved:', tierListDoc);
-			console.log('Firebase document exists:', tierListDoc.exists());
 
 			if (!tierListDoc.exists()) {
-				console.log('Firebase document does not exist');
 				throw new Error('Tier list not found');
 			}
 
 			const data = tierListDoc.data();
-			console.log('Firebase raw tier list data:', JSON.stringify(data, null, 2));
 
 			let owner_displayName: string | undefined = undefined;
 			if (data.owner) {
@@ -314,7 +304,6 @@ export class FirebaseFallbackClient {
 				author: data.author || owner_displayName
 			} as TierListResponse;
 
-			console.log('Firebase processed tier list result:', result);
 			return result;
 		} catch (error) {
 			console.error('Firebase getTierList error:', error);

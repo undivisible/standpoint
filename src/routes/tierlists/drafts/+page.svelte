@@ -70,7 +70,7 @@
 								</div>
 								{#if draft.bannerImage}
 									<div class="mb-3">
-										<img src={draft.bannerImage} alt="Banner" class="h-16 w-32 object-cover" />
+										<img src={draft.bannerImage} alt="Banner" loading="lazy" class="h-16 w-32 object-cover" />
 									</div>
 								{/if}
 								<div class="flex flex-wrap gap-2">

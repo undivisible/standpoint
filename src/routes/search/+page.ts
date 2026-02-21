@@ -2,8 +2,9 @@ import { searchTierlists, searchPolls, searchUsers } from '$lib/search';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ url }) => {
-	const query = url.searchParams.get('q') || '';
-	const type = url.searchParams.get('type') || 'all';
+	const query = (url.searchParams.get('q') || '').slice(0, 200);
+	const rawType = url.searchParams.get('type') || 'all';
+	const type = ['all', 'tierlists', 'polls', 'users'].includes(rawType) ? rawType : 'all';
 
 	if (!query.trim()) {
 		return {

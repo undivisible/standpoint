@@ -208,7 +208,6 @@
 
 	async function loadTierList() {
 		if (!tierListId) {
-			console.log('No tierListId provided');
 			return;
 		}
 
@@ -281,16 +280,12 @@
 					}
 				});
 			} else {
-				console.log('No item placements found - processing items directly');
 				allItems.forEach((item, index) => {
-					if (response.list_type === 'dynamic') {
-						console.log(`✅ Using existing position for item "${item.text}":`, item.position);
-					} else {
+					if (response.list_type !== 'dynamic') {
 						const tierIndex = index % transformedTiers.length;
 						const tier = transformedTiers[tierIndex];
 						if (tier) {
 							tier.items.push(item);
-							console.log(`✅ Auto-placed item "${item.text}" in tier "${tier.name}"`);
 						}
 					}
 				});
@@ -488,8 +483,6 @@
 				})),
 				owner: tierList.owner
 			};
-
-			console.log('Edit data being prepared:', editData);
 
 			// Store edit data in sessionStorage for the create page
 			sessionStorage.setItem('editData', JSON.stringify(editData));

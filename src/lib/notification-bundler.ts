@@ -83,7 +83,6 @@ export async function createBundledNotification(
 					{ merge: true }
 				);
 
-				console.log(`Bundled notification for ${bundleKey}, now ${existingUserIds.length} users`);
 				return;
 			}
 		}
@@ -99,7 +98,6 @@ export async function createBundledNotification(
 			count: 1
 		});
 
-		console.log(`Created new notification for ${bundleKey}`);
 	} catch (error) {
 		console.error('Error creating bundled notification:', error);
 	}

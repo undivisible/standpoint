@@ -19,70 +19,90 @@ service cloud.firestore {
       allow update: if isOwner(userId);
       allow delete: if isOwner(userId);
 
-      // Followers subcollection
+      // Followers subcollection - only the follower can add/remove themselves
       match /followers/{followerId} {
         allow read: if true;
-        allow write: if isSignedIn();
+        allow create: if isSignedIn() && request.auth.uid == followerId;
+        allow delete: if isSignedIn() && request.auth.uid == followerId;
       }
 
-      // Following subcollection
+      // Following subcollection - only the owner can manage their following list
       match /following/{followingId} {
         allow read: if true;
-        allow write: if isSignedIn();
+        allow create: if isOwner(userId);
+        allow delete: if isOwner(userId);
       }
 
-      // Notifications subcollection
+      // Notifications subcollection - owner reads, any signed-in user can create (for likes/comments)
       match /notifications/{notificationId} {
         allow read: if isOwner(userId);
-        allow write: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isOwner(userId);
       }
     }
 
     // --- UID Redirects ---
     match /uid-redirects/{redirectId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      // Only the user whose UID matches the redirect ID can create their own redirect
+      allow create: if isOwner(redirectId);
+      allow update: if isOwner(redirectId);
     }
 
     // --- Polls ---
     match /polls/{pollId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      // Owner field must match authenticated user on create
+      allow create: if isSignedIn()
+        && request.resource.data.owner == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.owner == request.auth.uid;
       allow delete: if isSignedIn()
         && resource.data.owner == request.auth.uid;
 
-      // Votes subcollection
+      // Votes subcollection - users can only write their own vote
       match /votes/{voteId} {
         allow read: if true;
-        allow write: if isSignedIn();
+        allow create: if isSignedIn() && request.auth.uid == voteId;
+        allow update: if isSignedIn() && request.auth.uid == voteId;
       }
 
-      // Likes subcollection
+      // Likes subcollection - users can only write their own like
       match /likes/{likeId} {
         allow read: if true;
-        allow write: if isSignedIn();
+        allow create: if isSignedIn() && request.auth.uid == likeId;
+        allow delete: if isSignedIn() && request.auth.uid == likeId;
       }
     }
 
     // --- Tierlists ---
     match /tierlists/{tierlistId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      // Owner field must match authenticated user on create
+      allow create: if isSignedIn()
+        && request.resource.data.owner == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.owner == request.auth.uid;
       allow delete: if isSignedIn()
         && resource.data.owner == request.auth.uid;
 
-      // Likes subcollection
+      // Likes subcollection - users can only write their own like
       match /likes/{likeId} {
         allow read: if true;
-        allow write: if isSignedIn();
+        allow create: if isSignedIn() && request.auth.uid == likeId;
+        allow delete: if isSignedIn() && request.auth.uid == likeId;
       }
 
-      // Comments subcollection
+      // Comments subcollection - author validated on create, only author can edit/delete
       match /comments/{commentId} {
         allow read: if true;
-        allow write: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.authorUid == request.auth.uid;
+        allow update: if isSignedIn()
+          && resource.data.authorUid == request.auth.uid;
+        allow delete: if isSignedIn()
+          && resource.data.authorUid == request.auth.uid;
       }
 
       // Placements subcollection
@@ -95,11 +115,12 @@ service cloud.firestore {
     // --- Comments (top-level) ---
     match /comments/{commentId} {
       allow read: if true;
-      allow create: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.authorUid == request.auth.uid;
       allow update: if isSignedIn()
-        && resource.data.userId == request.auth.uid;
+        && resource.data.authorUid == request.auth.uid;
       allow delete: if isSignedIn()
-        && resource.data.userId == request.auth.uid;
+        && resource.data.authorUid == request.auth.uid;
     }
 
     // --- Forks ---
@@ -113,7 +134,8 @@ service cloud.firestore {
     // --- Tierlist likes (legacy) ---
     match /tierlist_likes/{likeId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create: if isSignedIn();
+      allow delete: if isSignedIn();
     }
   }
 }

@@ -34,8 +34,23 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 		}
 
+		if (!poll.owner || typeof poll.owner !== 'string') {
+			return new Response(JSON.stringify({ error: 'Missing owner' }), {
+				status: 400
+			});
+		}
+
+		// Sanitize title length
+		const title = poll.title.slice(0, 200).trim();
+		if (!title) {
+			return new Response(JSON.stringify({ error: 'Poll title cannot be empty' }), {
+				status: 400
+			});
+		}
+
 		const cleanedPoll = cleanUndefinedValues({
 			...poll,
+			title,
 			stats: {
 				average: 0,
 				std_dev: 0,
@@ -51,7 +66,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		return new Response(JSON.stringify({ id: docRef.id }), { status: 201 });
 	} catch (e: unknown) {
-		return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
+		console.error('Poll creation error:', e);
+		return new Response(JSON.stringify({ error: 'Failed to create poll' }), {
 			status: 500
 		});
 	}

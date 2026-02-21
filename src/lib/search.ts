@@ -8,9 +8,9 @@ const SEARCH_LIMIT = 20;
 // Search Polls
 export async function searchTierlists(searchQuery: string): Promise<TierlistData[]> {
 	try {
-		const searchTerm = searchQuery.toLowerCase();
+		const searchTerm = searchQuery.toLowerCase().slice(0, 200);
 
-		const q = query(collection(db, 'tierlists'), orderBy('created_at', 'desc'), limit(100));
+		const q = query(collection(db, 'tierlists'), orderBy('created_at', 'desc'), limit(30));
 
 		const snapshot = await getDocs(q);
 		const allTierlists = snapshot.docs.map((doc) => ({
@@ -38,9 +38,9 @@ export async function searchTierlists(searchQuery: string): Promise<TierlistData
 // Search Polls
 export async function searchPolls(searchQuery: string): Promise<PollData[]> {
 	try {
-		const searchTerm = searchQuery.toLowerCase();
+		const searchTerm = searchQuery.toLowerCase().slice(0, 200);
 
-		const q = query(collection(db, 'polls'), orderBy('created_at', 'desc'), limit(100));
+		const q = query(collection(db, 'polls'), orderBy('created_at', 'desc'), limit(30));
 
 		const snapshot = await getDocs(q);
 		const allPolls = snapshot.docs.map((doc) => ({
@@ -67,9 +67,9 @@ export async function searchPolls(searchQuery: string): Promise<PollData[]> {
 // Search users
 export async function searchUsers(searchQuery: string): Promise<any[]> {
 	try {
-		const searchTerm = searchQuery.toLowerCase();
+		const searchTerm = searchQuery.toLowerCase().slice(0, 200);
 
-		const q = query(collection(db, 'users'), orderBy('displayName'), limit(100));
+		const q = query(collection(db, 'users'), orderBy('displayName'), limit(30));
 
 		const snapshot = await getDocs(q);
 		const allUsers = snapshot.docs.map((doc) => ({
