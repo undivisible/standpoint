@@ -37,7 +37,7 @@
 	import { onMount } from 'svelte';
 
 	// Library imports
-	import { currentUser, hasProAccessStore } from '$lib';
+	import { currentUser } from '$lib';
 	import { addToast } from '$lib/toast';
 	import { getUserBadges, type UserStats, type Badge } from '../../../lib/badges.js';
 	import { fadeImage } from '$lib/fadeImage';

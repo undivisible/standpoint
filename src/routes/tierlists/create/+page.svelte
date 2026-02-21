@@ -18,8 +18,14 @@
 	import { fade, scale } from 'svelte/transition';
 	import { fadeImage } from '$lib/fadeImage';
 	import { currentUser, signInWithGoogle, userGroup } from '$lib/stores';
-	import { hasProAccessStore } from '$lib';
 	import { getUserProfile } from '$lib/user-profile';
+	import {
+		onDeviceAIAvailable,
+		onDeviceAIStatus,
+		detectOnDeviceAI,
+		fetchOnDeviceSuggestions,
+		destroySession
+	} from '$lib/on-device-ai';
 	import type { UserProfile } from '$lib/user-profile';
 	import { addToast } from '$lib/toast';
 	import Toast from '$lib/../components/toast.svelte';
@@ -125,13 +131,13 @@
 		return 80 + (i % 5) * 40;
 	}
 
-	// Pro user check
-	$: isProUser = $hasProAccessStore;
+	// On-device AI check — available to all users when browser supports it
+	$: aiAvailable = $onDeviceAIAvailable;
 
-	// User profile and AI settings - ensure disabled for non-pro/not logged in
+	// User profile and AI settings — AI is enabled when on-device model is available
 	let userProfile: UserProfile | null = null;
 	let aiEnabled = true;
-	$: aiEnabled = !!$currentUser && isProUser && aiEnabled;
+	$: aiEnabled = aiAvailable && aiEnabled;
 
 	// Load AI suggestions from localStorage if present (for forked tierlists)
 	let localAISuggestions: any[] = [];
@@ -144,10 +150,10 @@
 		}
 	}
 
-	// Gemini suggestion system state
+	// AI suggestion system state
 	let suggestedItems: any[] = [];
 	let usedSuggestedItems: string[] = [];
-	let lastGeminiTitle: string = '';
+	let lastAITitle: string = '';
 	let fetchingSuggestions = false;
 	let prefetchedImages: Record<string, string> = {};
 
@@ -538,9 +544,9 @@
 		}
 	}
 
-	// AI display gating to keep fork suggestion UI if present
+	// AI display gating — show when on-device AI is available or when forking with existing suggestions
 	$: aiDisplayEnabled =
-		($currentUser && isProUser && aiEnabled) || (tierList.isForked && suggestedItems.length > 0);
+		(aiAvailable && aiEnabled) || (tierList.isForked && suggestedItems.length > 0);
 
 	// Derived dynamic items (for dynamic mode rendering)
 	$: dynamicAllItems = [
@@ -559,11 +565,18 @@
 	});
 
 	onMount(() => {
+		// Detect on-device AI availability
+		detectOnDeviceAI();
+
 		if (typeof window !== 'undefined') {
 			const params = new URLSearchParams(window.location.search);
 			const editId = params.get('edit');
 			if (editId) loadTierlistForEdit(editId);
 		}
+
+		return () => {
+			destroySession();
+		};
 	});
 
 	// Filtered AI suggestions based on input
@@ -579,10 +592,10 @@
 		);
 	})();
 
-	// Gemini debug modal state
-	let showGeminiDebugModal = false;
-	let lastGeminiPrompt = '';
-	let lastGeminiRawResponse = '';
+	// AI debug modal state
+	let showAIDebugModal = false;
+	let lastAIPrompt = '';
+	let lastAIRawResponse = '';
 
 	// Handle item type changes - clean up inconsistent data
 	$: if (editingItem) {
@@ -875,98 +888,40 @@
 		);
 	}
 
-	async function fetchGeminiSuggestions(title: string, usedItems: string[] = []) {
-		// Enforce: only logged-in pro users; guests/non-pro skip silently
-		if (!($currentUser && isProUser)) {
-			return;
-		}
+	async function fetchAISuggestions(title: string, usedItems: string[] = []) {
 		if (!aiEnabled) return;
 
 		fetchingSuggestions = true;
 		try {
-			const prompt = buildGeminiPrompt(title, usedItems, 30);
-			lastGeminiPrompt = prompt;
-			let data = null;
-			try {
-				const res = await fetch('/api/gemini/tierlist-suggest', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						title,
-						used_items: usedItems,
-						n: 30
-					})
-				});
-				if (!res.ok) throw new Error('Gemini API error: ' + res.status);
-				data = await res.json();
-			} catch (err) {
-				try {
-					const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
-					if (!apiKey) throw new Error('No Gemini API key available in frontend env');
-					const geminiRes = await fetch(
-						'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' +
-							apiKey,
-						{
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								contents: [{ role: 'user', parts: [{ text: prompt }] }]
-							})
-						}
-					);
-					if (!geminiRes.ok) throw new Error('Gemini direct API error: ' + geminiRes.status);
-					const geminiData = await geminiRes.json();
-					let text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-					try {
-						let cleaned = text.trim();
-						if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
-						if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
-						if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
-						data = JSON.parse(cleaned.trim());
-					} catch (e) {
-						data = { error: 'Gemini fallback: Invalid JSON in response', raw: text };
-					}
-				} catch (fallbackErr) {
-					data = { error: 'Gemini fallback failed: ' + fallbackErr };
-				}
+			lastAIPrompt = `Suggest 30 tier list items for "${title}"`;
+			const result = await fetchOnDeviceSuggestions(title, usedItems, 30);
+
+			if (!result) {
+				lastAIRawResponse = 'On-device AI not available';
+				suggestedItems = [];
+				return;
 			}
-			lastGeminiRawResponse = data.raw ?? data.raw_response ?? data.error ?? JSON.stringify(data);
-			if (data.items) {
+
+			lastAIRawResponse = result.raw;
+
+			if (result.items && result.items.length > 0) {
 				const usedSet = new Set(usedItems.map((i) => i.toLowerCase()));
-				suggestedItems = data.items.filter((item: any) => !usedSet.has(item.name.toLowerCase()));
+				suggestedItems = result.items.filter(
+					(item: any) => item.name && !usedSet.has(item.name.toLowerCase())
+				);
 				await prefetchImagesForSuggestions(suggestedItems);
 			} else {
 				suggestedItems = [];
 			}
-			lastGeminiTitle = title;
+			lastAITitle = title;
 			lastFetchedTitle = title;
 		} catch (err) {
-			console.error('Failed to fetch Gemini suggestions:', err);
-			lastGeminiRawResponse = String(err);
+			console.error('Failed to fetch AI suggestions:', err);
+			lastAIRawResponse = String(err);
 			suggestedItems = [];
 		} finally {
 			fetchingSuggestions = false;
 		}
-	}
-
-	function buildGeminiPrompt(title: string, usedItems: string[], n: number) {
-		const used =
-			usedItems && usedItems.length > 0
-				? `\nAlready suggested/used items (do not repeat): ${usedItems.join(', ')}`
-				: '';
-		return (
-			`I'm creating a tier list titled "${title}".${used}\n` +
-			`1. Suggest ${n} items that would be appropriate for this tier list.\n` +
-			'2. For each item, indicate if an image would be appropriate (true/false).\n' +
-			'3. If images are appropriate, suggest a short search query for finding a representative image.\n' +
-			'Respond ONLY in JSON:\n' +
-			'{\n' +
-			'  "items": [\n' +
-			'    { "name": "...", "image": true/false, "image_query": "..." }\n' +
-			'  ]\n' +
-			'}\n' +
-			'You MUST respond with only the JSON object and nothing else. Do not add any explanation, code block, or extra text.'
-		);
 	}
 
 	async function prefetchImagesForSuggestions(suggestions: any[]) {
@@ -1001,13 +956,13 @@
 		const urlParams = new URLSearchParams(window.location.search);
 		const isForked = urlParams.get('forked') === 'true' || urlParams.get('fork') !== null;
 
-		if ($currentUser && isProUser && !isForked && suggestedItems.length < 10) {
+		if (aiEnabled && !isForked && suggestedItems.length < 10) {
 			const allUsed = [
 				...usedSuggestedItems,
 				...tierList.tiers.flatMap((t) => t.items.map((i) => i.text)),
 				...tierList.unassignedItems.map((i) => i.text)
 			];
-			fetchGeminiSuggestions(tierList.title, allUsed);
+			fetchAISuggestions(tierList.title, allUsed);
 		}
 		closeAddItemModal();
 	}
@@ -1017,11 +972,10 @@
 		const isForked = urlParams.get('forked') === 'true' || urlParams.get('fork') !== null;
 
 		if (
-			$currentUser &&
-			isProUser &&
+			aiEnabled &&
 			!isForked &&
 			tierList.title &&
-			tierList.title !== lastGeminiTitle &&
+			tierList.title !== lastAITitle &&
 			tierList.title !== 'Untitled Tier List'
 		) {
 			const allUsed = [
@@ -1029,7 +983,7 @@
 				...tierList.tiers.flatMap((t) => t.items.map((i) => i.text)),
 				...tierList.unassignedItems.map((i) => i.text)
 			];
-			fetchGeminiSuggestions(tierList.title, allUsed);
+			fetchAISuggestions(tierList.title, allUsed);
 		}
 	}
 
@@ -1271,15 +1225,15 @@
 			...tierList.tiers.flatMap((t) => t.items.map((i) => i.text)),
 			...tierList.unassignedItems.map((i) => i.text)
 		];
-		// Only fetch Gemini suggestions if not forking and title has changed
+		// Only fetch AI suggestions if not forking and title has changed
 		const urlParams = new URLSearchParams(window.location.search);
 		const isForked = urlParams.get('forked') === 'true' || urlParams.get('fork') !== null;
 		if (
 			!isForked &&
-			tierList.title !== lastGeminiTitle &&
+			tierList.title !== lastAITitle &&
 			tierList.title !== 'Untitled Tier List'
 		) {
-			fetchGeminiSuggestions(tierList.title, allUsed);
+			fetchAISuggestions(tierList.title, allUsed);
 		}
 
 		focusInput('#quick-add-input');
@@ -2130,7 +2084,7 @@
 							<button
 								type="button"
 								class="text-accent ml-4 cursor-pointer border-0 bg-transparent p-0 text-xs hover:brightness-110"
-								on:click={() => (showGeminiDebugModal = true)}
+								on:click={() => (showAIDebugModal = true)}
 								in:fade={{ duration: 300 }}>No suggestions found</button
 							>
 						{/if}
@@ -2139,16 +2093,11 @@
 							>Suggestions ready</span
 						>
 					{/if}
-				{:else if !$currentUser}
-					<button
-						class="ml-4 text-xs text-gray-400 underline decoration-dotted underline-offset-4 hover:text-white"
-						on:click={signInWithGoogle}>Sign in for AI suggestions</button
-					>
-				{:else if !$hasProAccessStore}
-					<a
-						href="/pro"
-						class="text-accent ml-4 text-xs underline decoration-dotted underline-offset-4 hover:brightness-110"
-						>Upgrade to Pro for AI</a
+				{:else if !aiAvailable}
+					<span
+						class="ml-4 text-xs text-gray-500"
+						title="AI suggestions require a browser with built-in AI support (Chrome 131+)"
+						>AI unavailable in this browser</span
 					>
 				{/if}
 				<div class="relative ml-auto flex items-center" bind:this={publishWrapper}>
@@ -3325,29 +3274,29 @@
 	{/if}
 </div>
 
-<!-- Gemini Debug Modal -->
-{#if showGeminiDebugModal}
+<!-- AI Debug Modal -->
+{#if showAIDebugModal}
 	<div class="bg-opacity-80 fixed inset-0 z-50 flex items-center justify-center bg-black">
 		<div class="relative mx-4 w-full max-w-2xl bg-gray-900 p-8 shadow-2xl">
 			<button
 				class="absolute top-4 right-4 text-2xl text-gray-400 hover:text-white"
-				on:click={() => (showGeminiDebugModal = false)}
+				on:click={() => (showAIDebugModal = false)}
 				aria-label="Close debug modal"
 			>
 				&times;
 			</button>
-			<h2 class="mb-4 text-2xl font-bold" style="color: rgb(var(--primary));">Gemini Debug Info</h2>
+			<h2 class="mb-4 text-2xl font-bold" style="color: rgb(var(--primary));">On-Device AI Debug</h2>
 			<div class="mb-6">
-				<div class="mb-2 text-sm font-semibold text-gray-300">Prompt Sent to Gemini:</div>
+				<div class="mb-2 text-sm font-semibold text-gray-300">Prompt Sent:</div>
 				<pre
 					class="overflow-x-auto bg-gray-800 p-4 text-xs whitespace-pre-wrap text-gray-200"
-					style="max-height: 200px;">{lastGeminiPrompt}</pre>
+					style="max-height: 200px;">{lastAIPrompt}</pre>
 			</div>
 			<div>
-				<div class="mb-2 text-sm font-semibold text-gray-300">Raw Gemini Response:</div>
+				<div class="mb-2 text-sm font-semibold text-gray-300">Raw Response:</div>
 				<pre
 					class="overflow-x-auto bg-gray-800 p-4 text-xs whitespace-pre-wrap text-gray-200"
-					style="max-height: 300px;">{lastGeminiRawResponse}</pre>
+					style="max-height: 300px;">{lastAIRawResponse}</pre>
 			</div>
 		</div>
 	</div>

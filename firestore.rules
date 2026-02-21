@@ -1,18 +1,119 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2025, 8, 29);
+
+    // --- Helper functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+      // Followers subcollection
+      match /followers/{followerId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+
+      // Following subcollection
+      match /following/{followingId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+
+      // Notifications subcollection
+      match /notifications/{notificationId} {
+        allow read: if isOwner(userId);
+        allow write: if isSignedIn();
+      }
+    }
+
+    // --- UID Redirects ---
+    match /uid-redirects/{redirectId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // --- Polls ---
+    match /polls/{pollId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn()
+        && resource.data.owner == request.auth.uid;
+
+      // Votes subcollection
+      match /votes/{voteId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+
+      // Likes subcollection
+      match /likes/{likeId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+    }
+
+    // --- Tierlists ---
+    match /tierlists/{tierlistId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn()
+        && resource.data.owner == request.auth.uid;
+
+      // Likes subcollection
+      match /likes/{likeId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+
+      // Placements subcollection
+      match /placements/{placementId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+    }
+
+    // --- Comments (top-level) ---
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // --- Forks ---
+    match /forks/{forkId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // --- Tierlist likes (legacy) ---
+    match /tierlist_likes/{likeId} {
+      allow read: if true;
+      allow write: if isSignedIn();
     }
   }
 }

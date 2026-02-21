@@ -105,10 +105,3 @@ export async function signOutUser() {
 	await signOut(auth);
 }
 
-// Utility function to check if user has pro-level access
-export function hasProAccess(group: string | null): boolean {
-	return group === 'pro' || group === 'dev';
-}
-
-// Store for pro access
-export const hasProAccessStore = derived(userGroup, (group) => hasProAccess(group));

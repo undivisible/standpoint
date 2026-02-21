@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { currentUser } from '$lib/stores';
-	import { hasProAccessStore } from '$lib';
 	import { updateUserProfile, getUserProfile } from '$lib/user-profile';
+	import { onDeviceAIAvailable, detectOnDeviceAI } from '$lib/on-device-ai';
 	import { accentColor, setAccent } from '$lib/accent';
 	import { createUserProfile } from '$lib';
 	import type { UserProfile } from '$lib/user-profile';
@@ -223,6 +223,9 @@
 
 	// Handle client-side auth check
 	onMount(async () => {
+		// Detect on-device AI availability
+		detectOnDeviceAI();
+
 		if (!$currentUser) {
 			goto('/login?redirectTo=/settings');
 			return;
@@ -392,32 +395,6 @@
 		}
 	}
 
-	onMount(async () => {
-		if (!$currentUser) {
-			goto('/login?redirectTo=/settings');
-			return;
-		}
-
-		// If we don't have profile data from SSR, load it client-side
-		if (!userProfile) {
-			try {
-				userProfile = await getUserProfile($currentUser.uid);
-
-				if (!userProfile) {
-					await createUserProfile({
-						uid: $currentUser.uid,
-						displayName: $currentUser.displayName || '',
-						email: $currentUser.email || '',
-						photoURL: $currentUser.photoURL || ''
-					});
-					userProfile = await getUserProfile($currentUser.uid);
-				}
-			} catch (error) {
-				console.error('Error loading profile:', error);
-				addToast('Failed to load profile data', 'error');
-			}
-		}
-	});
 </script>
 
 <svelte:head>
@@ -455,7 +432,7 @@
 								return 4 + idx * (40 + 4) + 'px';
 							})()}"
 						></div>
-						{#each [{ id: 'profile', icon: 'person', label: 'Profile' }, { id: 'notifications', icon: 'notifications', label: 'Notifications' }, { id: 'privacy', icon: 'privacy_tip', label: 'Privacy' }, { id: 'theme', icon: 'palette', label: 'Theme', pro: true }, { id: 'ai', icon: 'smart_toy', label: 'AI Features', pro: true }] as item (item.id)}
+						{#each [{ id: 'profile', icon: 'person', label: 'Profile' }, { id: 'notifications', icon: 'notifications', label: 'Notifications' }, { id: 'privacy', icon: 'privacy_tip', label: 'Privacy' }, { id: 'theme', icon: 'palette', label: 'Theme' }, { id: 'ai', icon: 'smart_toy', label: 'AI Features' }] as item (item.id)}
 							<button
 								on:click={() => (activeSection = item.id)}
 								class="relative z-10 flex h-10 w-full items-center px-4 text-left text-sm font-medium tracking-wide transition-colors {activeSection ===
@@ -465,13 +442,6 @@
 							>
 								<span class="material-symbols-outlined mr-3 text-sm">{item.icon}</span>
 								{item.label}
-								{#if item.pro}
-									<span
-										class="ml-2 inline-flex items-center px-2 py-1 text-[10px] font-semibold text-white"
-										style="background:linear-gradient(90deg,var(--pro-grad-stop-1),var(--pro-grad-stop-2),var(--pro-grad-stop-3));"
-										>✨ PRO</span
-									>
-								{/if}
 							</button>
 						{/each}
 					</nav>
@@ -520,12 +490,6 @@
 								<div>
 									<div class="mb-4 block text-sm font-medium text-gray-300">
 										Profile Banner
-										<span
-											class="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium text-white"
-											style="background:linear-gradient(90deg,var(--pro-grad-stop-1),var(--pro-grad-stop-2),var(--pro-grad-stop-3));"
-										>
-											✨ PRO
-										</span>
 									</div>
 									<div class="relative">
 										<div class="mb-2 text-sm text-gray-400">Banner Preview:</div>
@@ -547,38 +511,23 @@
 											</div>
 										{/if}
 										<div class="absolute inset-0 flex items-center justify-center">
-											{#if $hasProAccessStore}
-												<input
-													type="file"
-													bind:this={bannerFileInput}
-													on:change={handleBannerUpload}
-													accept="image/*"
-													class="hidden"
-												/>
-												<button
-													type="button"
-													on:click={() => bannerFileInput?.click()}
-													class="theme-transition px-4 py-2 text-sm transition-colors"
-													style="background-color: rgba(0,0,0,0.5); color: var(--text);"
-												>
-													Change Banner
-												</button>
-											{:else}
-												<button
-													disabled
-													class="theme-transition cursor-not-allowed px-4 py-2 text-sm"
-													style="background-color: rgba(0,0,0,0.5); color: var(--text-secondary);"
-												>
-													Change Banner
-												</button>
-											{/if}
+											<input
+												type="file"
+												bind:this={bannerFileInput}
+												on:change={handleBannerUpload}
+												accept="image/*"
+												class="hidden"
+											/>
+											<button
+												type="button"
+												on:click={() => bannerFileInput?.click()}
+												class="theme-transition px-4 py-2 text-sm transition-colors"
+												style="background-color: rgba(0,0,0,0.5); color: var(--text);"
+											>
+												Change Banner
+											</button>
 										</div>
 									</div>
-									{#if !$hasProAccessStore}
-										<p class="text-accent/70 mt-2 text-xs">
-											🔒 Pro feature: Unlock custom profile banners
-										</p>
-									{/if}
 								</div>
 
 								<div>
@@ -594,32 +543,24 @@
 									/>
 								</div>
 
-								{#if $hasProAccessStore}
-									<div>
-										<label for="uid" class="mb-2 block text-sm font-medium text-gray-300">
-											UID (Custom Username)
-											<span
-												class="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium text-white"
-												style="background:linear-gradient(90deg,var(--pro-grad-stop-1),var(--pro-grad-stop-2),var(--pro-grad-stop-3));"
-											>
-												✨ PRO
-											</span>
-										</label>
-										<input
-											id="uid"
-											type="text"
-											bind:value={profileForm.uid}
-											class="w-full border border-gray-600 bg-gray-700 px-4 py-3 text-white placeholder-gray-400 focus:border-transparent focus:ring-2 focus:ring-[rgb(var(--primary))]"
-											placeholder="Your custom UID"
-											pattern="[a-zA-Z0-9_-]+"
-											title="UID can only contain letters, numbers, hyphens, and underscores"
-										/>
-										<p class="mt-1 text-xs text-gray-400">
-											Your custom UID will be used in your profile URL. Can only contain letters,
-											numbers, hyphens, and underscores.
-										</p>
-									</div>
-								{/if}
+								<div>
+									<label for="uid" class="mb-2 block text-sm font-medium text-gray-300">
+										UID (Custom Username)
+									</label>
+									<input
+										id="uid"
+										type="text"
+										bind:value={profileForm.uid}
+										class="w-full border border-gray-600 bg-gray-700 px-4 py-3 text-white placeholder-gray-400 focus:border-transparent focus:ring-2 focus:ring-[rgb(var(--primary))]"
+										placeholder="Your custom UID"
+										pattern="[a-zA-Z0-9_-]+"
+										title="UID can only contain letters, numbers, hyphens, and underscores"
+									/>
+									<p class="mt-1 text-xs text-gray-400">
+										Your custom UID will be used in your profile URL. Can only contain letters,
+										numbers, hyphens, and underscores.
+									</p>
+								</div>
 
 								<div>
 									<label for="bio" class="mb-2 block text-sm font-medium text-gray-300">
@@ -1029,28 +970,13 @@
 									</div>
 								</div>
 
-								<!--<div>
-										<label for="fontSize" class="mb-2 block text-sm font-medium text-gray-300">
-											Font Size
-										</label>
-										<select
-											id="fontSize"
-											bind:value={themeForm.fontSize}
-											class="w-full border border-gray-600 bg-gray-700 px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[rgb(var(--primary))]"
-										>
-											<option value="small">Small</option>
-											<option value="medium">Medium</option>
-											<option value="large">Large</option>
-										</select>
-									</div>
-
-									<button
-										on:click={saveTheme}
-										disabled={saving}
-										class="bg-[rgb(var(--primary))] px-6 py-3 text-white transition-colors hover:brightness-110 disabled:opacity-50"
-									>
-										{saving ? 'Saving...' : 'Save Theme'}
-									</button>-->
+								<button
+									on:click={saveTheme}
+									disabled={saving}
+									class="bg-[rgb(var(--primary))] px-6 py-3 text-white transition-colors hover:brightness-110 disabled:opacity-50"
+								>
+									{saving ? 'Saving...' : 'Save Theme'}
+								</button>
 							</div>
 						</div>
 					{/if}
@@ -1059,71 +985,56 @@
 					{#if activeSection === 'ai'}
 						<div class="border border-gray-700 bg-gray-800/50 p-8 backdrop-blur-sm">
 							<h2 class="mb-6 text-2xl font-bold">AI Features</h2>
+							<p class="mb-6 text-sm text-gray-400">
+								AI features use your browser's built-in on-device model (Gemini Nano).
+								No data is sent to external servers.
+								{#if !$onDeviceAIAvailable}
+									<span class="mt-1 block text-yellow-400">
+										Your browser does not support built-in AI. Try Chrome 131+ with the Prompt API enabled.
+									</span>
+								{/if}
+							</p>
 
-							{#if $hasProAccessStore}
-								<div class="space-y-6">
-									<div class="flex items-center justify-between">
-										<div>
-											<h3 class="font-medium text-white">Enable AI Features</h3>
-											<p class="text-sm text-gray-400">Allow AI to enhance your experience</p>
-										</div>
-										<label class="relative inline-flex cursor-pointer items-center">
-											<input type="checkbox" bind:checked={aiForm.enableAI} class="peer sr-only" />
-											<div
-												class="peer h-6 w-11 bg-gray-700 peer-checked:bg-[rgb(var(--primary))] peer-focus:ring-4 peer-focus:ring-[rgb(var(--primary))]/40 after:absolute after:top-0.5 after:left-[2px] after:h-5 after:w-5 after:after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
-											></div>
-										</label>
+							<div class="space-y-6">
+								<div class="flex items-center justify-between">
+									<div>
+										<h3 class="font-medium text-white">Enable AI Features</h3>
+										<p class="text-sm text-gray-400">Allow AI to enhance your experience</p>
 									</div>
-
-									<div class="flex items-center justify-between">
-										<div>
-											<h3 class="font-medium text-white">AI Suggestions</h3>
-											<p class="text-sm text-gray-400">Get intelligent content suggestions</p>
-										</div>
-										<label class="relative inline-flex cursor-pointer items-center">
-											<input
-												type="checkbox"
-												bind:checked={aiForm.aiSuggestions}
-												class="peer sr-only"
-											/>
-											<div
-												class="peer h-6 w-11 bg-gray-700 peer-checked:bg-[rgb(var(--primary))] peer-focus:ring-4 peer-focus:ring-[rgb(var(--primary))]/40 after:absolute after:top-0.5 after:left-[2px] after:h-5 after:w-5 after:after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
-											></div>
-										</label>
-									</div>
-
-									<div class="flex items-center justify-between">
-										<div>
-											<h3 class="font-medium text-white">More AI features on the way</h3>
-											<p class="text-sm text-gray-400">Unless I forget</p>
-										</div>
-									</div>
-
-									<button
-										on:click={saveAI}
-										disabled={saving}
-										class="bg-[rgb(var(--primary))] px-6 py-3 text-white transition-colors hover:brightness-110 disabled:opacity-50"
-									>
-										{saving ? 'Saving...' : 'Save AI Settings'}
-									</button>
+									<label class="relative inline-flex cursor-pointer items-center">
+										<input type="checkbox" bind:checked={aiForm.enableAI} class="peer sr-only" disabled={!$onDeviceAIAvailable} />
+										<div
+											class="peer h-6 w-11 bg-gray-700 peer-checked:bg-[rgb(var(--primary))] peer-focus:ring-4 peer-focus:ring-[rgb(var(--primary))]/40 after:absolute after:top-0.5 after:left-[2px] after:h-5 after:w-5 after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
+										></div>
+									</label>
 								</div>
-							{:else}
-								<div class="py-12 text-center">
-									<div class="mb-4">
-										<span class="text-6xl">🤖</span>
+
+								<div class="flex items-center justify-between">
+									<div>
+										<h3 class="font-medium text-white">AI Suggestions</h3>
+										<p class="text-sm text-gray-400">Get intelligent content suggestions for tier lists</p>
 									</div>
-									<h3 class="mb-2 text-xl font-bold text-white">Pro Feature</h3>
-									<p class="mb-6 text-gray-400">Unlock AI-powered features with Standpoint Pro</p>
-									<a
-										href="/pro"
-										class="inline-flex items-center px-6 py-3 font-medium text-white transition-all"
-										style="background:linear-gradient(90deg,var(--pro-grad-stop-1),var(--pro-grad-stop-2),var(--pro-grad-stop-3));"
-									>
-										<span>✨</span>
-										<span class="ml-2">Upgrade to Pro</span>
-									</a>
+									<label class="relative inline-flex cursor-pointer items-center">
+										<input
+											type="checkbox"
+											bind:checked={aiForm.aiSuggestions}
+											class="peer sr-only"
+											disabled={!$onDeviceAIAvailable}
+										/>
+										<div
+											class="peer h-6 w-11 bg-gray-700 peer-checked:bg-[rgb(var(--primary))] peer-focus:ring-4 peer-focus:ring-[rgb(var(--primary))]/40 after:absolute after:top-0.5 after:left-[2px] after:h-5 after:w-5 after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
+										></div>
+									</label>
 								</div>
-							{/if}
+
+								<button
+									on:click={saveAI}
+									disabled={saving}
+									class="bg-[rgb(var(--primary))] px-6 py-3 text-white transition-colors hover:brightness-110 disabled:opacity-50"
+								>
+									{saving ? 'Saving...' : 'Save AI Settings'}
+								</button>
+							</div>
 						</div>
 					{/if}
 				</div>

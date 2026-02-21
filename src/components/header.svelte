@@ -7,8 +7,7 @@
 		currentUser,
 		userGroup,
 		signInWithGoogle,
-		signOutUser,
-		hasProAccessStore
+		signOutUser
 	} from '../lib/stores';
 	import NotificationBell from './notification-bell.svelte';
 	import { getUserProfile } from '../lib/user-profile';
@@ -176,6 +175,9 @@
 			bind:this={pollsEl}
 			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-32' : 'h-2 w-6'} group-hover:h-12 group-hover:w-32 ${$page.url.pathname.startsWith('/polls') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
 			style="transform-origin: top center;"
+			ontouchstart={startMobileNav}
+			ontouchmove={moveMobileNav}
+			ontouchend={endMobileNav}
 		>
 			<div
 				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
@@ -192,6 +194,9 @@
 			bind:this={tierlistsEl}
 			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-44' : 'h-2 w-8'} group-hover:h-12 group-hover:w-44 ${$page.url.pathname.startsWith('/tierlists') && !$page.url.pathname.startsWith('/tierlists/drafts') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
 			style="transform-origin: top center;"
+			ontouchstart={startMobileNav}
+			ontouchmove={moveMobileNav}
+			ontouchend={endMobileNav}
 		>
 			<div
 				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
@@ -208,6 +213,9 @@
 			bind:this={draftsEl}
 			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-24' : 'h-2 w-4'} group-hover:h-12 group-hover:w-24 ${$page.url.pathname.startsWith('/tierlists/drafts') ? 'bg-[rgb(var(--primary))] text-white opacity-100' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'} ${!$page.url.pathname.startsWith('/tierlists/drafts') && !mobileOpen ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}
 			style="transform-origin: top center;"
+			ontouchstart={startMobileNav}
+			ontouchmove={moveMobileNav}
+			ontouchend={endMobileNav}
 		>
 			<div
 				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
