@@ -1,29 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { db } from '../../../../lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
-
-// Function to clean undefined values
-function cleanUndefinedValues(obj: any): any {
-	if (obj === null || obj === undefined) {
-		return null;
-	}
-
-	if (Array.isArray(obj)) {
-		return obj.map(cleanUndefinedValues).filter((item) => item !== undefined);
-	}
-
-	if (typeof obj === 'object') {
-		const cleaned: any = {};
-		for (const [key, value] of Object.entries(obj)) {
-			if (value !== undefined) {
-				cleaned[key] = cleanUndefinedValues(value);
-			}
-		}
-		return cleaned;
-	}
-
-	return obj;
-}
+import { cleanUndefinedValues } from '$lib/utils';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {

@@ -16,17 +16,7 @@ import {
 	limit,
 	increment
 } from 'firebase/firestore';
-
-// Helper function to clean undefined values
-function cleanUndefinedValues(obj: any) {
-	const cleaned: any = {};
-	for (const key in obj) {
-		if (obj[key] !== undefined) {
-			cleaned[key] = obj[key];
-		}
-	}
-	return cleaned;
-}
+import { cleanUndefinedValues } from './utils';
 
 // Types for tierlist and poll data
 export interface TierlistData {

@@ -165,11 +165,15 @@
 			let loadedPolls = await getPollsFromFirestore();
 			// Attach user votes if signed in
 			if (auth.currentUser) {
-				for (const poll of loadedPolls) {
-					const userVote = await getUserVote(poll.id, auth.currentUser.uid);
+				const uid = auth.currentUser.uid;
+				const votes = await Promise.all(
+					loadedPolls.map((poll) => getUserVote(poll.id, uid))
+				);
+				for (let i = 0; i < loadedPolls.length; i++) {
+					const userVote = votes[i];
 					if (userVote) {
-						poll.user_vote = userVote.position;
-						poll.user_vote_2d = userVote.position_2d;
+						loadedPolls[i].user_vote = userVote.position;
+						loadedPolls[i].user_vote_2d = userVote.position_2d;
 					}
 				}
 			} else {

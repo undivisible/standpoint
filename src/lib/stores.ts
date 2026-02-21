@@ -36,9 +36,13 @@ export const userGroup = writable<string | null>(null);
 // Derived store for current user profile
 export const currentUserProfile = derived(firebaseUser, ($firebaseUser, set) => {
 	if (browser && $firebaseUser) {
-		getDoc(doc(db, 'users', $firebaseUser.uid)).then((userDoc) => {
-			set(userDoc.exists() ? { ...userDoc.data(), id: $firebaseUser.uid } : null);
-		});
+		getDoc(doc(db, 'users', $firebaseUser.uid))
+			.then((userDoc) => {
+				set(userDoc.exists() ? { ...userDoc.data(), id: $firebaseUser.uid } : null);
+			})
+			.catch(() => {
+				set(null);
+			});
 	} else {
 		set(null);
 	}
@@ -47,14 +51,15 @@ export const currentUserProfile = derived(firebaseUser, ($firebaseUser, set) => 
 // Listen for auth state changes (only in browser)
 if (browser) {
 	onAuthStateChanged(auth, async (user) => {
-		currentUser.set(user);
-		if (user) {
-			let group = await getUserGroup(user.uid);
-			if (!group) {
-				group = 'user';
-				await setUserGroup(user.uid, group);
-			}
-			userGroup.set(group);
+		try {
+			currentUser.set(user);
+			if (user) {
+				let group = await getUserGroup(user.uid);
+				if (!group) {
+					group = 'user';
+					await setUserGroup(user.uid, group);
+				}
+				userGroup.set(group);
 			// Load user preferences (accent/theme)
 			try {
 				const snap = await getDoc(doc(db, 'users', user.uid));
@@ -76,6 +81,9 @@ if (browser) {
 			}
 		} else {
 			userGroup.set(null);
+		}
+		} catch (e) {
+			console.warn('Auth state handler error:', e);
 		}
 	});
 }
