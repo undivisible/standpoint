@@ -17,12 +17,21 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase only in browser
-let app: FirebaseApp;
-let db: Firestore;
-let auth: Auth;
-let storage: FirebaseStorage;
+let app = undefined as unknown as FirebaseApp;
+let db = undefined as unknown as Firestore;
+let auth = undefined as unknown as Auth;
+let storage = undefined as unknown as FirebaseStorage;
 
-if (browser) {
+const hasFirebaseConfig = Boolean(
+	firebaseConfig.apiKey &&
+		firebaseConfig.authDomain &&
+		firebaseConfig.projectId &&
+		firebaseConfig.storageBucket &&
+		firebaseConfig.messagingSenderId &&
+		firebaseConfig.appId
+);
+
+if (browser && hasFirebaseConfig) {
 	app = initializeApp(firebaseConfig);
 	db = getFirestore(app);
 	auth = getAuth(app);
