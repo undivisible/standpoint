@@ -150,7 +150,7 @@
 		<a
 			href="/polls"
 			bind:this={pollsEl}
-			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-32' : 'h-2 w-6'} group-hover:h-12 group-hover:w-32 ${$page.url.pathname.startsWith('/polls') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
+			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-20' : 'h-2 w-4'} group-hover:h-12 group-hover:w-20 ${$page.url.pathname.startsWith('/polls') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
 			style="transform-origin: top center;"
 			onclick={openMobileNav}
 			ontouchstart={startMobileNav}
@@ -170,7 +170,7 @@
 		<a
 			href="/tierlists"
 			bind:this={tierlistsEl}
-			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-44' : 'h-2 w-8'} group-hover:h-12 group-hover:w-44 ${$page.url.pathname.startsWith('/tierlists') && !$page.url.pathname.startsWith('/tierlists/drafts') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
+			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-32' : 'h-2 w-6'} group-hover:h-12 group-hover:w-32 ${$page.url.pathname.startsWith('/tierlists') && !$page.url.pathname.startsWith('/tierlists/drafts') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
 			style="transform-origin: top center;"
 			onclick={openMobileNav}
 			ontouchstart={startMobileNav}
@@ -190,7 +190,7 @@
 		<a
 			href="/spectrum"
 			bind:this={spectrumEl}
-			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-36' : 'h-2 w-6'} group-hover:h-12 group-hover:w-36 ${$page.url.pathname.startsWith('/live') || $page.url.pathname.startsWith('/spectrum') ? 'bg-[rgb(var(--primary))] text-white opacity-100' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
+			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-44' : 'h-2 w-8'} group-hover:h-12 group-hover:w-44 ${$page.url.pathname.startsWith('/live') || $page.url.pathname.startsWith('/spectrum') ? 'bg-[rgb(var(--primary))] text-white opacity-100' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
 			style="transform-origin: top center;"
 			onclick={openMobileNav}
 			ontouchstart={startMobileNav}
@@ -209,7 +209,7 @@
 	</div>
 
 	<div
-		class="search-shell mt-5 flex h-10 items-center gap-2 bg-[var(--surface)] transition-all duration-500 ease-out"
+		class="search-shell mt-5 flex h-10 items-center gap-2 bg-transparent transition-all duration-500 ease-out"
 		class:overlay-active={searchActive}
 	>
 		<button
@@ -277,16 +277,18 @@
 				</div>
 			</div>
 		{:else}
-			<a
-				href="/tierlists/drafts"
-				class="flex h-full items-center gap-2 border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
-				>Drafts</a
-			>
-			<button
-				class="flex h-full items-center gap-2 border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
-				onclick={handleGoogleLogin}
-				aria-label="Sign in with Google">Sign in with Google</button
-			>
+			<div class="flex h-full items-center justify-end gap-0">
+				<a
+					href="/tierlists/drafts"
+					class="flex h-full items-center gap-2 border border-gray-300 bg-gray-100 px-4 py-2 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-200"
+					>Drafts</a
+				>
+				<button
+					class="flex h-full items-center gap-2 border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
+					onclick={handleGoogleLogin}
+					aria-label="Sign in with Google">Sign in with Google</button
+				>
+			</div>
 		{/if}
 	</div>
 </div>
