@@ -1,17 +1,27 @@
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { getContext, onMount } from 'svelte';
 	import { currentUser, signInWithGoogle, signOutUser } from '../lib/stores';
 	import NotificationBell from './notification-bell.svelte';
 	import { getUserProfile } from '../lib/user-profile';
 
+	const navHoverStore = getContext<Writable<boolean>>('navHover');
+
 	let searchQuery = '';
+	let searchActive = false;
 	let avatarUrl: string | null = null;
 	let inputEl: HTMLInputElement | null = null;
 
 	let isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
 	let mobileOpen = false;
+	let activeIndex: number = -1;
+	let navGroupEl: HTMLElement | null = null;
+	let linkEls: Array<{ el: HTMLElement; href: string } | null> = [null, null, null];
+	let pollsEl: HTMLElement | null = null;
+	let tierlistsEl: HTMLElement | null = null;
+	let spectrumEl: HTMLElement | null = null;
 
 	function updateIsMobile() {
 		if (typeof window !== 'undefined') isMobile = window.innerWidth < 768;
@@ -52,6 +62,73 @@
 		return () => window.removeEventListener('resize', onResize);
 	});
 
+	function updateLinks() {
+		linkEls = [
+			pollsEl ? { el: pollsEl, href: '/polls' } : null,
+			tierlistsEl ? { el: tierlistsEl, href: '/tierlists' } : null,
+			spectrumEl ? { el: spectrumEl, href: '/spectrum' } : null
+		];
+	}
+
+	function openMobileNav(e: MouseEvent) {
+		if (!isMobile || mobileOpen) return;
+		e.preventDefault();
+		mobileOpen = true;
+		updateLinks();
+	}
+
+	function startMobileNav(e: TouchEvent) {
+		if (e.cancelable) e.preventDefault();
+		if (!isMobile) return;
+		mobileOpen = true;
+		updateLinks();
+		updateActiveFromTouch(e);
+		if (activeIndex === -1) activeIndex = 0;
+	}
+
+	function updateActiveFromTouch(e: TouchEvent) {
+		if (!mobileOpen) return;
+		const touch = e.touches[0];
+		if (!touch || !navGroupEl) return;
+		const rect = navGroupEl.getBoundingClientRect();
+		const y = touch.clientY - rect.top;
+		let bestIdx = -1;
+		let bestDist = Infinity;
+		for (let i = 0; i < linkEls.length; i++) {
+			const l = linkEls[i]?.el;
+			if (!l) continue;
+			const lr = l.getBoundingClientRect();
+			const center = (lr.top + lr.bottom) / 2 - rect.top;
+			const d = Math.abs(center - y);
+			if (d < bestDist) {
+				bestDist = d;
+				bestIdx = i;
+			}
+		}
+		activeIndex = bestIdx;
+	}
+
+	function moveMobileNav(e: TouchEvent) {
+		if (e.cancelable) e.preventDefault();
+		if (!mobileOpen) return;
+		updateActiveFromTouch(e);
+	}
+
+	function endMobileNav() {
+		if (!mobileOpen) return;
+		const target = linkEls[activeIndex]?.href;
+		mobileOpen = false;
+		activeIndex = -1;
+		if (target) goto(target);
+	}
+
+	function handleMouseEnter() {
+		navHoverStore?.set(true);
+	}
+	function handleMouseLeave() {
+		navHoverStore?.set(false);
+	}
+
 	async function handleGoogleLogin() {
 		await signInWithGoogle();
 	}
@@ -62,50 +139,82 @@
 </script>
 
 <div class="justify center flex h-20 items-start gap-4">
-	<nav class="relative z-50 mt-5 p-4 md:flex md:items-center md:gap-2" aria-label="Primary">
-		<button
-			type="button"
-			class="flex h-10 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 font-semibold text-[var(--text)] transition hover:border-[rgb(var(--primary))] md:hidden"
-			onclick={() => (mobileOpen = !mobileOpen)}
-			aria-expanded={mobileOpen}
-			aria-label="Open page switcher"
+	<div
+		class="group relative z-50 flex flex-col items-end justify-center gap-1 p-4 transition-all duration-500 ease-out"
+		style="margin-top: calc((5rem - 2rem) / 3 / 3);"
+		onmouseenter={handleMouseEnter}
+		onmouseleave={handleMouseLeave}
+		role="region"
+		bind:this={navGroupEl}
+	>
+		<a
+			href="/polls"
+			bind:this={pollsEl}
+			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-32' : 'h-2 w-6'} group-hover:h-12 group-hover:w-32 ${$page.url.pathname.startsWith('/polls') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
+			style="transform-origin: top center;"
+			onclick={openMobileNav}
+			ontouchstart={startMobileNav}
+			ontouchmove={moveMobileNav}
+			ontouchend={endMobileNav}
 		>
-			<span class="material-symbols-outlined text-lg">apps</span>
-			Pages
-		</button>
-		<div
-			class={`absolute top-full left-4 mt-2 min-w-44 rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl md:static md:mt-0 md:flex md:min-w-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none ${mobileOpen ? 'block' : 'hidden md:flex'}`}
+			<div
+				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
+			>
+				<span
+					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
+					class:opacity-100={mobileOpen}>POLLS</span
+				>
+			</div>
+		</a>
+
+		<a
+			href="/tierlists"
+			bind:this={tierlistsEl}
+			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-44' : 'h-2 w-8'} group-hover:h-12 group-hover:w-44 ${$page.url.pathname.startsWith('/tierlists') && !$page.url.pathname.startsWith('/tierlists/drafts') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
+			style="transform-origin: top center;"
+			onclick={openMobileNav}
+			ontouchstart={startMobileNav}
+			ontouchmove={moveMobileNav}
+			ontouchend={endMobileNav}
 		>
-			<a
-				href="/polls"
-				class={`block rounded-md px-4 py-2 font-semibold transition md:px-5 ${$page.url.pathname.startsWith('/polls') ? 'bg-[rgb(var(--primary))] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text)]'}`}
-				onclick={() => (mobileOpen = false)}
+			<div
+				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
 			>
-				Polls
-			</a>
-			<a
-				href="/tierlists"
-				class={`block rounded-md px-4 py-2 font-semibold transition md:px-5 ${$page.url.pathname.startsWith('/tierlists') && !$page.url.pathname.startsWith('/tierlists/drafts') ? 'bg-[rgb(var(--primary))] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text)]'}`}
-				onclick={() => (mobileOpen = false)}
+				<span
+					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
+					class:opacity-100={mobileOpen}>TIERLISTS</span
+				>
+			</div>
+		</a>
+
+		<a
+			href="/spectrum"
+			bind:this={spectrumEl}
+			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-36' : 'h-2 w-6'} group-hover:h-12 group-hover:w-36 ${$page.url.pathname.startsWith('/live') || $page.url.pathname.startsWith('/spectrum') ? 'bg-[rgb(var(--primary))] text-white opacity-100' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
+			style="transform-origin: top center;"
+			onclick={openMobileNav}
+			ontouchstart={startMobileNav}
+			ontouchmove={moveMobileNav}
+			ontouchend={endMobileNav}
+		>
+			<div
+				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
 			>
-				Tierlists
-			</a>
-			<a
-				href="/spectrum"
-				class={`block rounded-md px-4 py-2 font-semibold transition md:px-5 ${$page.url.pathname.startsWith('/live') || $page.url.pathname.startsWith('/spectrum') ? 'bg-[rgb(var(--primary))] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text)]'}`}
-				onclick={() => (mobileOpen = false)}
-			>
-				Spectrum
-			</a>
-		</div>
-	</nav>
+				<span
+					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
+					class:opacity-100={mobileOpen}>SPECTRUM</span
+				>
+			</div>
+		</a>
+	</div>
 
 	<div
-		class="search-shell mt-5 flex h-10 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-[var(--text)] transition-all duration-500 ease-out focus-within:border-[rgb(var(--primary))]"
+		class="search-shell mt-5 flex h-10 items-center gap-2 bg-[var(--surface)] transition-all duration-500 ease-out"
+		class:overlay-active={searchActive}
 	>
 		<button
 			type="button"
-			class="material-symbols-outlined hover:text-accent text-xl text-[var(--text-secondary)] transition-colors select-none focus:outline-none"
+			class="material-symbols-outlined hover:text-accent text-xl text-gray-500 transition-colors select-none focus:outline-none"
 			onclick={() => inputEl?.focus()}
 			aria-label="Focus search input">search</button
 		>
@@ -113,7 +222,7 @@
 			bind:this={inputEl}
 			bind:value={searchQuery}
 			placeholder="SEARCH"
-			class="flex-1 bg-transparent text-[var(--text)] placeholder:bg-transparent placeholder:text-[var(--text-secondary)] focus:outline-none"
+			class="flex-1 bg-transparent text-white placeholder:bg-transparent placeholder:text-white/40 focus:text-white focus:outline-none"
 		/>
 	</div>
 
@@ -170,7 +279,7 @@
 		{:else}
 			<a
 				href="/tierlists/drafts"
-				class="flex h-10 items-center border border-[var(--border)] bg-[var(--surface)] px-4 py-2 font-medium text-[var(--text)] transition-colors hover:border-[rgb(var(--primary))]"
+				class="flex h-full items-center gap-2 border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
 				>Drafts</a
 			>
 			<button
