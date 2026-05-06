@@ -22,12 +22,17 @@ let db = undefined as unknown as Firestore;
 let auth = undefined as unknown as Auth;
 let storage = undefined as unknown as FirebaseStorage;
 
-const hasFirebaseConfig = Boolean(
+export const hasFirebaseConfig = Boolean(
 	firebaseConfig.apiKey &&
+		firebaseConfig.apiKey !== 'undefined' &&
 		firebaseConfig.authDomain &&
+		firebaseConfig.authDomain !== 'undefined' &&
 		firebaseConfig.projectId &&
+		firebaseConfig.projectId !== 'undefined' &&
 		firebaseConfig.storageBucket &&
+		firebaseConfig.storageBucket !== 'undefined' &&
 		firebaseConfig.messagingSenderId &&
+		firebaseConfig.messagingSenderId !== 'undefined' &&
 		firebaseConfig.appId
 );
 

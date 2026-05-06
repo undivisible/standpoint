@@ -10,7 +10,12 @@ export async function load() {
 	}
 
 	// In browser, wait for auth to initialize
-	const { auth } = await import('../lib/firebase');
+	const { auth, hasFirebaseConfig } = await import('../lib/firebase');
+	if (!hasFirebaseConfig) {
+		return {
+			user: null as User | null
+		};
+	}
 	const { onAuthStateChanged } = await import('firebase/auth');
 
 	const user = await new Promise<User | null>((resolve) => {
