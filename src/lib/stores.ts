@@ -33,10 +33,11 @@ export const currentUser = firebaseUser;
 // Store for user group — always 'user' (no paid plan)
 export const userGroup = writable<string | null>(null);
 export const hasProAccessStore = writable(true);
+const firebaseReady = Boolean(auth && db);
 
 // Derived store for current user profile
 export const currentUserProfile = derived(firebaseUser, ($firebaseUser, set) => {
-	if (browser && $firebaseUser) {
+	if (browser && firebaseReady && $firebaseUser) {
 		getDoc(doc(db, 'users', $firebaseUser.uid)).then((userDoc) => {
 			set(userDoc.exists() ? { ...userDoc.data(), id: $firebaseUser.uid } : null);
 		});
@@ -46,7 +47,7 @@ export const currentUserProfile = derived(firebaseUser, ($firebaseUser, set) => 
 });
 
 // Listen for auth state changes (only in browser)
-if (browser) {
+if (browser && firebaseReady) {
 	onAuthStateChanged(auth, async (user) => {
 		currentUser.set(user);
 		if (user) {
@@ -79,6 +80,7 @@ if (browser) {
 // Helper to persist theme mode (light/dark)
 export async function persistThemeMode(mode: 'light' | 'dark') {
 	if (!browser) return;
+	if (!firebaseReady) return;
 	const user = auth.currentUser;
 	if (!user) return;
 	try {
@@ -91,6 +93,7 @@ export async function persistThemeMode(mode: 'light' | 'dark') {
 // Sign in with Google
 export async function signInWithGoogle() {
 	if (!browser) return;
+	if (!firebaseReady) return;
 	const provider = new GoogleAuthProvider();
 	await signInWithPopup(auth, provider);
 }
@@ -98,5 +101,6 @@ export async function signInWithGoogle() {
 // Sign out
 export async function signOutUser() {
 	if (!browser) return;
+	if (!firebaseReady) return;
 	await signOut(auth);
 }
