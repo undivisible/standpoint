@@ -3,6 +3,10 @@ import type { Handle } from '@sveltejs/kit';
 export const handle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
+	if (event.request.headers.get('upgrade')?.toLowerCase() === 'websocket') {
+		return response;
+	}
+
 	// Add security headers
 	response.headers.set(
 		'Content-Security-Policy',
@@ -12,7 +16,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 			"font-src 'self' https://fonts.gstatic.com",
 			"img-src 'self' data: blob: https: http:",
-			"connect-src 'self' https://*.googleapis.com https://*.google.com https://*.firebaseio.com https://*.cloudfunctions.net wss://*.firebaseio.com https://firestore.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com",
+			"connect-src 'self' wss: https://*.googleapis.com https://*.google.com https://*.firebaseio.com https://*.cloudfunctions.net wss://*.firebaseio.com https://firestore.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com",
 			"frame-src 'self' https://www.google.com",
 			"object-src 'none'",
 			"base-uri 'self'",
