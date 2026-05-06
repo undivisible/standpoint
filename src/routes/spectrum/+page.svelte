@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { currentUser } from '$lib/stores';
+	import type { PublicRoomListEntry } from '$lib/live/types';
 
 	let playerName = '';
 	let roomCode = '';
+	let visibility: 'private' | 'public' = 'private';
+	let publicRooms: PublicRoomListEntry[] = [];
 	let busy = false;
 	let error = '';
 
@@ -26,16 +30,28 @@
 		return next;
 	}
 
+	async function loadPublicRooms() {
+		try {
+			const response = await fetch('/api/spectrum/rooms');
+			if (!response.ok) throw new Error(await response.text());
+			const data = await response.json();
+			publicRooms = data.rooms ?? [];
+		} catch {
+			publicRooms = [];
+		}
+	}
+
 	async function createRoom() {
 		busy = true;
 		error = '';
 		try {
-			const response = await fetch('/api/live/rooms', {
+			const response = await fetch('/api/spectrum/rooms', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({
 					playerName: playerName || 'Host',
-					userId: getLiveUserId()
+					userId: getLiveUserId(),
+					visibility
 				})
 			});
 			if (!response.ok) throw new Error(await response.text());
@@ -49,8 +65,7 @@
 		}
 	}
 
-	async function joinRoom() {
-		const code = cleanCode(roomCode);
+	async function joinRoom(code = cleanCode(roomCode)) {
 		if (code.length !== 6) {
 			error = 'Enter a 6-character room code.';
 			return;
@@ -58,6 +73,10 @@
 		localStorage.setItem('standpointLiveName', playerName || 'Player');
 		await goto(`/spectrum/${code}`);
 	}
+
+	onMount(() => {
+		void loadPublicRooms();
+	});
 </script>
 
 <svelte:head>
@@ -65,7 +84,7 @@
 </svelte:head>
 
 <section class="min-h-[calc(100vh-5rem)] bg-[var(--bg)] px-4 py-12 text-[var(--text)]">
-	<div class="mx-auto grid max-w-6xl items-center gap-8 md:grid-cols-[1.1fr_0.9fr]">
+	<div class="mx-auto grid max-w-6xl items-start gap-8 md:grid-cols-[1.1fr_0.9fr]">
 		<div class="rounded-md border border-neutral-800 bg-neutral-900/80 p-8 md:p-10">
 			<p class="text-sm tracking-[0.28em] text-[rgb(var(--primary))] uppercase">
 				multiplayer spectrum polls
@@ -110,9 +129,24 @@
 
 			<div class="rounded-md border border-neutral-800 bg-neutral-900/80 p-6">
 				<h2 class="text-2xl font-bold text-white">Create a room</h2>
-				<p class="mt-2 text-[var(--text-secondary)]">
-					Host a fresh spectrum game and invite friends with a six-character code.
-				</p>
+				<div
+					class="mt-4 grid grid-cols-2 gap-2 rounded-md border border-neutral-800 bg-black/20 p-1"
+				>
+					<button
+						type="button"
+						class={`rounded px-3 py-2 text-sm font-semibold transition ${visibility === 'private' ? 'bg-[rgb(var(--primary))] text-white' : 'text-[var(--text-secondary)] hover:text-white'}`}
+						onclick={() => (visibility = 'private')}
+					>
+						Private
+					</button>
+					<button
+						type="button"
+						class={`rounded px-3 py-2 text-sm font-semibold transition ${visibility === 'public' ? 'bg-[rgb(var(--primary))] text-white' : 'text-[var(--text-secondary)] hover:text-white'}`}
+						onclick={() => (visibility = 'public')}
+					>
+						Public
+					</button>
+				</div>
 				<button
 					type="button"
 					class="mt-5 w-full rounded-md bg-[rgb(var(--primary))] px-5 py-3 font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
@@ -136,10 +170,39 @@
 					<button
 						type="button"
 						class="rounded-md border border-neutral-700 px-5 py-3 font-semibold text-white transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
-						onclick={joinRoom}
+						onclick={() => joinRoom()}
 					>
 						Join
 					</button>
+				</div>
+			</div>
+
+			<div class="rounded-md border border-neutral-800 bg-neutral-900/80 p-6">
+				<div class="flex items-center justify-between gap-3">
+					<h2 class="text-2xl font-bold text-white">Public rooms</h2>
+					<button
+						type="button"
+						class="rounded-md border border-neutral-700 px-3 py-2 text-sm font-semibold text-white transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
+						onclick={loadPublicRooms}
+					>
+						Refresh
+					</button>
+				</div>
+				<div class="mt-4 space-y-2">
+					{#if publicRooms.length === 0}
+						<p class="text-sm text-[var(--text-secondary)]">No public lobby rooms are open.</p>
+					{:else}
+						{#each publicRooms as room (room.id)}
+							<button
+								type="button"
+								class="flex w-full items-center justify-between gap-4 rounded-md border border-neutral-800 bg-black/20 px-4 py-3 text-left transition hover:border-[rgb(var(--primary))]"
+								onclick={() => joinRoom(room.code)}
+							>
+								<span class="font-black tracking-[0.16em] text-white">{room.code}</span>
+								<span class="text-sm text-[var(--text-secondary)]">{room.playerCount} online</span>
+							</button>
+						{/each}
+					{/if}
 				</div>
 			</div>
 

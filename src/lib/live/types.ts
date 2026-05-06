@@ -32,6 +32,8 @@ export type Phase =
 	| 'scoring'
 	| 'ended';
 
+export type RoomVisibility = 'private' | 'public';
+
 export type Player = {
 	id: string;
 	userId?: string;
@@ -58,6 +60,7 @@ export type PublicRoomState = {
 	code: string;
 	hostUserId: string;
 	hostPlayerId?: string;
+	visibility: RoomVisibility;
 	phase: Phase;
 	status: Phase;
 	players: Player[];
@@ -83,7 +86,23 @@ export type CreateRoomResponse = {
 		id: string;
 		code: string;
 		host: string;
+		visibility: RoomVisibility;
 		status: Phase;
 		players: Player[];
 	};
+};
+
+export type PublicRoomListEntry = {
+	id: string;
+	code: string;
+	hostUserId: string;
+	visibility: RoomVisibility;
+	status: Phase;
+	playerCount: number;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type PublicRoomListResponse = {
+	rooms: PublicRoomListEntry[];
 };

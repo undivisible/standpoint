@@ -25,6 +25,6 @@
 	<div
 		class="mt-4 flex aspect-square max-h-28 items-center justify-center rounded-md border border-dashed border-neutral-800 text-xs text-[var(--text-secondary)]"
 	>
-		standpoint.live/{code}
+		standpoint.undivisible.dev/spectrum/{code}
 	</div>
 </div>

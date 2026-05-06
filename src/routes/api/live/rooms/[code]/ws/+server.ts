@@ -1,11 +1,8 @@
-import { error } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ request, params, platform }) => {
-	const rooms = platform?.env?.ROOMS;
-	if (!rooms) throw error(503, 'Live rooms require Durable Objects.');
-
-	const id = rooms.idFromName(params.code.toUpperCase());
-	const room = rooms.get(id);
-	return room.fetch(request);
+export const GET: RequestHandler = ({ request, params }) => {
+	const url = new URL(request.url);
+	url.pathname = `/api/spectrum/rooms/${encodeURIComponent(params.code)}/ws`;
+	throw redirect(308, url);
 };

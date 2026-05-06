@@ -93,7 +93,7 @@
 	onpointerup={pointerUp}
 	onpointercancel={pointerUp}
 	role="application"
-	aria-label="Live spectrum guess"
+	aria-label="Spectrum guess"
 >
 	<div
 		class="absolute inset-0 bg-[linear-gradient(90deg,rgba(51,51,51,0.15)_1px,transparent_1px),linear-gradient(0deg,rgba(51,51,51,0.12)_1px,transparent_1px)] bg-[size:4vw_4vw]"

@@ -1,141 +1,16 @@
-import { error, json } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import type { PublicRoomState } from '$lib/live/types';
 
-function clean(value: unknown, fallback: string, max = 80) {
-	return String(value || fallback)
-		.replace(/<[^>]*>/g, '')
-		.replace(/[^\p{L}\p{N}\s._-]/gu, '')
-		.trim()
-		.slice(0, max);
+function spectrumUrl(request: Request, code: string) {
+	const url = new URL(request.url);
+	url.pathname = `/api/spectrum/rooms/${encodeURIComponent(code)}`;
+	return url;
 }
 
-function randomId(prefix: string) {
-	const bytes = crypto.getRandomValues(new Uint8Array(16));
-	return `${prefix}_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
-}
-
-async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomState> {
-	const room = await db
-		.prepare(
-			'SELECT id, code, host_user_id, status, created_at, updated_at FROM standpoint_rooms WHERE code = ?'
-		)
-		.bind(code.toUpperCase())
-		.first<{
-			id: string;
-			code: string;
-			host_user_id: string;
-			status: PublicRoomState['phase'];
-			created_at: string;
-			updated_at: string;
-		}>();
-
-	if (!room) throw error(404, 'Room not found.');
-
-	const playersResult = await db
-		.prepare(
-			'SELECT id, user_id, display_name, join_order, connected FROM standpoint_room_players WHERE room_id = ? ORDER BY join_order ASC'
-		)
-		.bind(room.id)
-		.all<{
-			id: string;
-			user_id?: string;
-			display_name: string;
-			join_order: number;
-			connected: number;
-		}>();
-
-	const scoresResult = await db
-		.prepare('SELECT player_id, points FROM standpoint_room_scores WHERE room_id = ?')
-		.bind(room.id)
-		.all<{ player_id: string; points: number }>();
-
-	const players = (playersResult.results ?? []).map((player) => ({
-		id: player.id,
-		userId: player.user_id,
-		displayName: player.display_name,
-		joinOrder: player.join_order,
-		connected: Boolean(player.connected),
-		isHost: player.user_id === room.host_user_id
-	}));
-
-	return {
-		id: room.id,
-		code: room.code,
-		hostUserId: room.host_user_id,
-		hostPlayerId: players.find((player) => player.userId === room.host_user_id)?.id,
-		phase: room.status,
-		status: room.status,
-		players,
-		psychicHistory: [],
-		psychicIndex: 0,
-		psychicId: null,
-		spectrum: null,
-		roundNumber: 0,
-		targetValue: null,
-		clue: null,
-		guessValue: null,
-		lockedGuess: null,
-		scores: (scoresResult.results ?? []).map((score) => ({
-			playerId: score.player_id,
-			points: score.points
-		})),
-		lastRoundPoints: [],
-		lastDistance: null,
-		createdAt: room.created_at,
-		updatedAt: room.updated_at
-	};
-}
-
-export const GET: RequestHandler = async ({ params, platform }) => {
-	const db = platform?.env?.DB;
-	if (!db) throw error(503, 'Live rooms require Cloudflare D1.');
-	return json(await roomSnapshot(db, params.code));
+export const GET: RequestHandler = ({ request, params }) => {
+	throw redirect(308, spectrumUrl(request, params.code));
 };
 
-export const POST: RequestHandler = async ({ request, params, platform }) => {
-	const db = platform?.env?.DB;
-	if (!db) throw error(503, 'Live rooms require Cloudflare D1.');
-
-	const body = await request.json().catch(() => ({}));
-	const room = await db
-		.prepare('SELECT id FROM standpoint_rooms WHERE code = ?')
-		.bind(params.code.toUpperCase())
-		.first<{ id: string }>();
-
-	if (!room) throw error(404, 'Room not found.');
-
-	const playerName = clean(body.playerName, 'Player', 40);
-	const userId = body.userId ? clean(body.userId, '', 120) : undefined;
-	const existing = userId
-		? await db
-				.prepare('SELECT id FROM standpoint_room_players WHERE room_id = ? AND user_id = ?')
-				.bind(room.id, userId)
-				.first<{ id: string }>()
-		: null;
-
-	if (existing) {
-		await db
-			.prepare(
-				'UPDATE standpoint_room_players SET display_name = ?, connected = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-			)
-			.bind(playerName, existing.id)
-			.run();
-	} else {
-		const order = await db
-			.prepare(
-				'SELECT COALESCE(MAX(join_order), -1) + 1 AS next_order FROM standpoint_room_players WHERE room_id = ?'
-			)
-			.bind(room.id)
-			.first<{ next_order: number }>();
-
-		await db
-			.prepare(
-				'INSERT INTO standpoint_room_players (id, room_id, user_id, display_name, join_order, connected, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
-			)
-			.bind(randomId('player'), room.id, userId ?? null, playerName, order?.next_order ?? 0)
-			.run();
-	}
-
-	return json(await roomSnapshot(db, params.code));
+export const POST: RequestHandler = ({ request, params }) => {
+	throw redirect(308, spectrumUrl(request, params.code));
 };

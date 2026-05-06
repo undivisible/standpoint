@@ -75,7 +75,7 @@ export class LiveWSClient {
 	private open() {
 		if (typeof window === 'undefined') return;
 		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-		const url = `${protocol}//${window.location.host}/api/live/rooms/${encodeURIComponent(this.code)}/ws`;
+		const url = `${protocol}//${window.location.host}/api/spectrum/rooms/${encodeURIComponent(this.code)}/ws`;
 		this.socket = new WebSocket(url);
 
 		this.socket.onopen = () => {
@@ -88,7 +88,7 @@ export class LiveWSClient {
 				const message = JSON.parse(String(event.data)) as LiveServerMessage;
 				this.dispatch(message);
 			} catch {
-				this.dispatch({ type: 'error', message: 'Received an invalid live room message.' });
+				this.dispatch({ type: 'error', message: 'Received an invalid spectrum room message.' });
 			}
 		};
 
@@ -98,7 +98,7 @@ export class LiveWSClient {
 		};
 
 		this.socket.onerror = () => {
-			this.dispatch({ type: 'error', message: 'Live room connection failed.' });
+			this.dispatch({ type: 'error', message: 'Spectrum room connection failed.' });
 		};
 	}
 

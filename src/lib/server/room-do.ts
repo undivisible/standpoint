@@ -1,4 +1,11 @@
-import type { Phase, Player, PublicRoomState, ScoreEntry, SpectrumCard } from '$lib/live/types';
+import type {
+	Phase,
+	Player,
+	PublicRoomState,
+	RoomVisibility,
+	ScoreEntry,
+	SpectrumCard
+} from '$lib/live/types';
 
 type Env = {
 	DB: D1Database;
@@ -9,6 +16,7 @@ type RoomState = {
 	code: string;
 	hostUserId: string;
 	hostPlayerId?: string;
+	visibility: RoomVisibility;
 	phase: Phase;
 	players: Player[];
 	psychicHistory: string[];
@@ -98,13 +106,14 @@ export class RoomDO {
 	private async ensureRoom(code: string) {
 		if (this.room) return;
 		const room = await this.env.DB.prepare(
-			'SELECT id, code, host_user_id, status, created_at, updated_at FROM standpoint_rooms WHERE code = ?'
+			'SELECT id, code, host_user_id, visibility, status, created_at, updated_at FROM standpoint_rooms WHERE code = ?'
 		)
 			.bind(code)
 			.first<{
 				id: string;
 				code: string;
 				host_user_id: string;
+				visibility?: RoomVisibility;
 				status: Phase;
 				created_at: string;
 				updated_at: string;
@@ -144,6 +153,7 @@ export class RoomDO {
 			code: room.code,
 			hostUserId: room.host_user_id,
 			hostPlayerId: players.find((player) => player.userId === room.host_user_id)?.id,
+			visibility: room.visibility ?? 'private',
 			phase: room.status,
 			players,
 			psychicHistory: [],
@@ -214,6 +224,14 @@ export class RoomDO {
 		const room = this.requireRoom();
 		const cleanName = sanitize(playerName, 'Player', 40);
 		const cleanUserId = userId ? sanitize(userId, '', 120) : undefined;
+		const existingSocket = this.playerSockets.get(ws);
+		if (existingSocket) {
+			const existingPlayer = room.players.find((candidate) => candidate.id === existingSocket);
+			if (existingPlayer) {
+				this.send(ws, { type: 'room_snapshot', data: this.publicSnapshot(existingPlayer.id) });
+				return;
+			}
+		}
 		let player = cleanUserId
 			? room.players.find((candidate) => candidate.userId === cleanUserId)
 			: undefined;
@@ -502,6 +520,7 @@ export class RoomDO {
 	private publicSnapshot(viewerId?: string): PublicRoomState {
 		const room = this.requireRoom();
 		const psychic = this.currentPsychic();
+		const controllingHostId = this.controllingHostId();
 		const revealVisible =
 			room.phase === 'reveal' || room.phase === 'scoring' || room.phase === 'ended';
 		const psychicVisible =
@@ -512,11 +531,15 @@ export class RoomDO {
 			code: room.code,
 			hostUserId: room.hostUserId,
 			hostPlayerId: room.hostPlayerId,
+			visibility: room.visibility,
 			phase: room.phase,
 			status: room.phase,
 			players: room.players.map((player) => ({
 				...player,
-				isHost: player.id === room.hostPlayerId || player.userId === room.hostUserId,
+				isHost:
+					player.id === room.hostPlayerId ||
+					player.userId === room.hostUserId ||
+					player.id === controllingHostId,
 				psychicIndex: player.id === psychic?.id ? room.psychicIndex : undefined
 			})),
 			psychicHistory: room.psychicHistory,
@@ -569,9 +592,23 @@ export class RoomDO {
 		const playerId = this.requirePlayer(ws);
 		const room = this.requireRoom();
 		const player = room.players.find((candidate) => candidate.id === playerId);
-		if (!player || (player.id !== room.hostPlayerId && player.userId !== room.hostUserId)) {
+		if (
+			!player ||
+			(player.id !== room.hostPlayerId &&
+				player.userId !== room.hostUserId &&
+				player.id !== this.controllingHostId())
+		) {
 			throw new Error('Only the host can do that.');
 		}
+	}
+
+	private controllingHostId() {
+		const room = this.requireRoom();
+		const stableHost = room.players.find(
+			(player) => player.id === room.hostPlayerId || player.userId === room.hostUserId
+		);
+		if (!stableHost || stableHost.connected) return stableHost?.id;
+		return room.players.find((player) => player.connected)?.id;
 	}
 
 	private currentPsychic() {
