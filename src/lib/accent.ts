@@ -39,20 +39,6 @@ export async function setAccent(color: string) {
 	document.documentElement.style.setProperty('--primary-soft', `${r}, ${g}, ${b}, 0.12`);
 	document.documentElement.style.setProperty('--primary-light-soft', `${rl}, ${gl}, ${bl}, 0.18`);
 
-	// Dynamic PRO gradient stops derived from accent hue so gradients feel color-specific
-	try {
-		const { h, s, l } = rgbToHsl(Number(r), Number(g), Number(b));
-		const stop1 = `hsl(${h} ${Math.min(s + 10, 100)}% ${Math.max(l - 4, 18)}%)`;
-		const stop2 = `hsl(${(h + 40) % 360} ${s}% ${Math.max(l - 10, 15)}%)`;
-		const stop3 = `hsl(${(h + 70) % 360} ${Math.max(s - 5, 35)}% ${Math.max(l - 16, 12)}%)`;
-		document.documentElement.style.setProperty('--pro-grad-stop-1', stop1);
-		document.documentElement.style.setProperty('--pro-grad-stop-2', stop2);
-		document.documentElement.style.setProperty('--pro-grad-stop-3', stop3);
-	} catch (e) {
-		// If HSL conversion fails for unexpected input, don't crash - log for debugging
-		console.warn('Failed to compute pro gradient stops for accent', e);
-	}
-
 	// Persist preference for logged-in user
 	try {
 		const user = get(currentUser);
@@ -62,32 +48,4 @@ export async function setAccent(color: string) {
 	} catch (e) {
 		console.warn('Failed to persist accent preference', e);
 	}
-}
-
-function rgbToHsl(r: number, g: number, b: number) {
-	r /= 255;
-	g /= 255;
-	b /= 255;
-	const max = Math.max(r, g, b),
-		min = Math.min(r, g, b);
-	let h = 0,
-		s = 0;
-	const l = (max + min) / 2;
-	if (max !== min) {
-		const d = max - min;
-		s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-		switch (max) {
-			case r:
-				h = (g - b) / d + (g < b ? 6 : 0);
-				break;
-			case g:
-				h = (b - r) / d + 2;
-				break;
-			case b:
-				h = (r - g) / d + 4;
-				break;
-		}
-		h /= 6;
-	}
-	return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
 }

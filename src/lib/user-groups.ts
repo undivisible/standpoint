@@ -1,37 +1,10 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+// All users are regular users now - no paid plan.
+// These functions remain as no-ops for backward compatibility with existing code.
 
-export async function getUserGroup(uid: string): Promise<string | null> {
-	console.log('[getUserGroup] called with uid:', uid);
-	if (!uid) {
-		console.warn('[getUserGroup] Invalid uid:', uid);
-		return null;
-	}
-	const userDoc = await getDoc(doc(db, 'users', uid));
-	if (userDoc.exists()) {
-		return userDoc.data().group || null;
-	}
-	return null;
+export async function getUserGroup(_uid: string): Promise<string | null> {
+	return 'user';
 }
 
-export async function setUserGroup(uid: string, group: string) {
-	await setDoc(doc(db, 'users', uid), { group }, { merge: true });
-}
-
-export async function setUserAsDeveloper(uid: string) {
-	await setUserGroup(uid, 'dev');
-}
-
-export async function setUserAsPro(uid: string) {
-	await setUserGroup(uid, 'pro');
-}
-
-export async function setUserAsRegular(uid: string) {
-	await setUserGroup(uid, 'user');
-}
-
-// Check if user has pro privileges (either pro or developer)
-export async function hasProPrivileges(uid: string): Promise<boolean> {
-	const group = await getUserGroup(uid);
-	return group === 'pro' || group === 'dev';
+export async function setUserGroup(_uid: string, _group: string) {
+	// no-op — all users are free
 }

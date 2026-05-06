@@ -455,7 +455,7 @@
 								return 4 + idx * (40 + 4) + 'px';
 							})()}"
 						></div>
-						{#each [{ id: 'profile', icon: 'person', label: 'Profile' }, { id: 'notifications', icon: 'notifications', label: 'Notifications' }, { id: 'privacy', icon: 'privacy_tip', label: 'Privacy' }, { id: 'theme', icon: 'palette', label: 'Theme', pro: true }, { id: 'ai', icon: 'smart_toy', label: 'AI Features', pro: true }] as item (item.id)}
+						{#each [{ id: 'profile', icon: 'person', label: 'Profile' }, { id: 'notifications', icon: 'notifications', label: 'Notifications' }, { id: 'privacy', icon: 'privacy_tip', label: 'Privacy' }, { id: 'theme', icon: 'palette', label: 'Theme' }, { id: 'ai', icon: 'smart_toy', label: 'AI Features' }] as item (item.id)}
 							<button
 								on:click={() => (activeSection = item.id)}
 								class="relative z-10 flex h-10 w-full items-center px-4 text-left text-sm font-medium tracking-wide transition-colors {activeSection ===
@@ -465,13 +465,7 @@
 							>
 								<span class="material-symbols-outlined mr-3 text-sm">{item.icon}</span>
 								{item.label}
-								{#if item.pro}
-									<span
-										class="ml-2 inline-flex items-center px-2 py-1 text-[10px] font-semibold text-white"
-										style="background:linear-gradient(90deg,var(--pro-grad-stop-1),var(--pro-grad-stop-2),var(--pro-grad-stop-3));"
-										>✨ PRO</span
-									>
-								{/if}
+
 							</button>
 						{/each}
 					</nav>

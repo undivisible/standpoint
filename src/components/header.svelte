@@ -7,8 +7,7 @@
 		currentUser,
 		userGroup,
 		signInWithGoogle,
-		signOutUser,
-		hasProAccessStore
+		signOutUser
 	} from '../lib/stores';
 	import NotificationBell from './notification-bell.svelte';
 	import { getUserProfile } from '../lib/user-profile';

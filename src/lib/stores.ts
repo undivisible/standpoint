@@ -30,7 +30,7 @@ export const imageSearchLoading = writable<boolean>(false);
 // Store for current user
 export const currentUser = firebaseUser;
 
-// Store for user group (example: 'dev', 'user', 'pro')
+// Store for user group — always 'user' (no paid plan)
 export const userGroup = writable<string | null>(null);
 
 // Derived store for current user profile
@@ -49,12 +49,7 @@ if (browser) {
 	onAuthStateChanged(auth, async (user) => {
 		currentUser.set(user);
 		if (user) {
-			let group = await getUserGroup(user.uid);
-			if (!group) {
-				group = 'user';
-				await setUserGroup(user.uid, group);
-			}
-			userGroup.set(group);
+			userGroup.set('user');
 			// Load user preferences (accent/theme)
 			try {
 				const snap = await getDoc(doc(db, 'users', user.uid));
@@ -80,7 +75,7 @@ if (browser) {
 	});
 }
 
-// Helper to persist theme mode (light/dark) [unfinished]
+// Helper to persist theme mode (light/dark)
 export async function persistThemeMode(mode: 'light' | 'dark') {
 	if (!browser) return;
 	const user = auth.currentUser;
@@ -104,11 +99,3 @@ export async function signOutUser() {
 	if (!browser) return;
 	await signOut(auth);
 }
-
-// Utility function to check if user has pro-level access
-export function hasProAccess(group: string | null): boolean {
-	return group === 'pro' || group === 'dev';
-}
-
-// Store for pro access
-export const hasProAccessStore = derived(userGroup, (group) => hasProAccess(group));

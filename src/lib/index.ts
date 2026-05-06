@@ -5,4 +5,4 @@ export * from './stores';
 export * from './firebase';
 export * from './api';
 
-export { hasProAccessStore, currentUser, userGroup } from './stores';
+export { currentUser, userGroup } from './stores';
