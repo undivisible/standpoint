@@ -1,37 +1,21 @@
 <script lang="ts">
-	import type { Writable } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { getContext, onMount } from 'svelte';
-	import { currentUser, userGroup, signInWithGoogle, signOutUser } from '../lib/stores';
+	import { onMount } from 'svelte';
+	import { currentUser, signInWithGoogle, signOutUser } from '../lib/stores';
 	import NotificationBell from './notification-bell.svelte';
 	import { getUserProfile } from '../lib/user-profile';
 
-	const navHoverStore = getContext<Writable<boolean>>('navHover');
-
-	let profileHovering = false;
 	let searchQuery = '';
-	let searchActive = false;
-	let searchResults: { tierlists: any[]; polls: any[]; users: any[] } | null = null;
-	let searching = false;
-	let searchDebounce: any;
 	let avatarUrl: string | null = null;
 	let inputEl: HTMLInputElement | null = null;
-	let filterAnimating = false;
 
 	let isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
 	let mobileOpen = false;
-	let activeIndex: number = -1;
-	let navGroupEl: HTMLElement | null = null;
-	let linkEls: Array<{ el: HTMLElement; href: string } | null> = [null, null, null, null, null];
-	let homeEl: HTMLElement | null = null;
-	let pollsEl: HTMLElement | null = null;
-	let tierlistsEl: HTMLElement | null = null;
-	let liveEl: HTMLElement | null = null;
-	let draftsEl: HTMLElement | null = null;
 
 	function updateIsMobile() {
 		if (typeof window !== 'undefined') isMobile = window.innerWidth < 768;
+		if (!isMobile) mobileOpen = false;
 	}
 
 	// Load user avatar when user changes
@@ -68,68 +52,6 @@
 		return () => window.removeEventListener('resize', onResize);
 	});
 
-	function updateLinks() {
-		linkEls = [
-			homeEl ? { el: homeEl, href: '/' } : null,
-			pollsEl ? { el: pollsEl, href: '/polls' } : null,
-			tierlistsEl ? { el: tierlistsEl, href: '/tierlists' } : null,
-			draftsEl ? { el: draftsEl, href: '/tierlists/drafts' } : null,
-			liveEl ? { el: liveEl, href: '/live' } : null
-		];
-	}
-
-	function startMobileNav(e: TouchEvent) {
-		if (e.cancelable) e.preventDefault();
-		if (!isMobile) return;
-		mobileOpen = true;
-		updateLinks();
-		updateActiveFromTouch(e);
-		if (activeIndex === -1) activeIndex = 0;
-	}
-
-	function updateActiveFromTouch(e: TouchEvent) {
-		if (!mobileOpen) return;
-		const touch = e.touches[0];
-		if (!touch || !navGroupEl) return;
-		const rect = navGroupEl.getBoundingClientRect();
-		const y = touch.clientY - rect.top;
-		let bestIdx = -1;
-		let bestDist = Infinity;
-		for (let i = 0; i < linkEls.length; i++) {
-			const l = linkEls[i]?.el;
-			if (!l) continue;
-			const lr = l.getBoundingClientRect();
-			const center = (lr.top + lr.bottom) / 2 - rect.top;
-			const d = Math.abs(center - y);
-			if (d < bestDist) {
-				bestDist = d;
-				bestIdx = i;
-			}
-		}
-		activeIndex = bestIdx;
-	}
-
-	function moveMobileNav(e: TouchEvent) {
-		if (e.cancelable) e.preventDefault();
-		if (!mobileOpen) return;
-		updateActiveFromTouch(e);
-	}
-
-	function endMobileNav() {
-		if (!mobileOpen) return;
-		const target = linkEls[activeIndex]?.href;
-		mobileOpen = false;
-		activeIndex = -1;
-		if (target) goto(target);
-	}
-
-	function handleMouseEnter() {
-		navHoverStore?.set(true);
-	}
-	function handleMouseLeave() {
-		navHoverStore?.set(false);
-	}
-
 	async function handleGoogleLogin() {
 		await signInWithGoogle();
 	}
@@ -140,105 +62,50 @@
 </script>
 
 <div class="justify center flex h-20 items-start gap-4">
-	<div
-		class="group relative z-50 flex flex-col items-end justify-center gap-1 p-4 transition-all duration-500 ease-out"
-		style="margin-top: calc((5rem - 2rem) / 3 / 3);"
-		onmouseenter={handleMouseEnter}
-		onmouseleave={handleMouseLeave}
-		role="region"
-		bind:this={navGroupEl}
-	>
-		<a
-			href="/"
-			bind:this={homeEl}
-			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-20' : 'h-2 w-4'} group-hover:h-12 group-hover:w-20 ${$page.url.pathname === '/' ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
-			style="transform-origin: top center;"
-			ontouchstart={startMobileNav}
-			ontouchmove={moveMobileNav}
-			ontouchend={endMobileNav}
+	<nav class="relative z-50 mt-5 p-4 md:flex md:items-center md:gap-2" aria-label="Primary">
+		<button
+			type="button"
+			class="flex h-10 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 font-semibold text-[var(--text)] transition hover:border-[rgb(var(--primary))] md:hidden"
+			onclick={() => (mobileOpen = !mobileOpen)}
+			aria-expanded={mobileOpen}
+			aria-label="Open page switcher"
 		>
-			<div
-				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
-			>
-				<span
-					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
-					class:opacity-100={mobileOpen}>HOME</span
-				>
-			</div>
-		</a>
-
-		<a
-			href="/polls"
-			bind:this={pollsEl}
-			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-32' : 'h-2 w-6'} group-hover:h-12 group-hover:w-32 ${$page.url.pathname.startsWith('/polls') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
-			style="transform-origin: top center;"
+			<span class="material-symbols-outlined text-lg">apps</span>
+			Pages
+		</button>
+		<div
+			class={`absolute top-full left-4 mt-2 min-w-44 rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl md:static md:mt-0 md:flex md:min-w-0 md:border-0 md:bg-transparent md:p-0 md:shadow-none ${mobileOpen ? 'block' : 'hidden md:flex'}`}
 		>
-			<div
-				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
+			<a
+				href="/polls"
+				class={`block rounded-md px-4 py-2 font-semibold transition md:px-5 ${$page.url.pathname.startsWith('/polls') ? 'bg-[rgb(var(--primary))] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text)]'}`}
+				onclick={() => (mobileOpen = false)}
 			>
-				<span
-					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
-					class:opacity-100={mobileOpen}>POLLS</span
-				>
-			</div>
-		</a>
-
-		<a
-			href="/tierlists"
-			bind:this={tierlistsEl}
-			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-44' : 'h-2 w-8'} group-hover:h-12 group-hover:w-44 ${$page.url.pathname.startsWith('/tierlists') && !$page.url.pathname.startsWith('/tierlists/drafts') ? 'bg-[rgb(var(--primary))] text-white' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'}`}
-			style="transform-origin: top center;"
-		>
-			<div
-				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
+				Polls
+			</a>
+			<a
+				href="/tierlists"
+				class={`block rounded-md px-4 py-2 font-semibold transition md:px-5 ${$page.url.pathname.startsWith('/tierlists') && !$page.url.pathname.startsWith('/tierlists/drafts') ? 'bg-[rgb(var(--primary))] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text)]'}`}
+				onclick={() => (mobileOpen = false)}
 			>
-				<span
-					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
-					class:opacity-100={mobileOpen}>TIERLISTS</span
-				>
-			</div>
-		</a>
-
-		<a
-			href="/tierlists/drafts"
-			bind:this={draftsEl}
-			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-24' : 'h-2 w-4'} group-hover:h-12 group-hover:w-24 ${$page.url.pathname.startsWith('/tierlists/drafts') ? 'bg-[rgb(var(--primary))] text-white opacity-100' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'} ${!$page.url.pathname.startsWith('/tierlists/drafts') && !mobileOpen ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}
-			style="transform-origin: top center;"
-		>
-			<div
-				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
+				Tierlists
+			</a>
+			<a
+				href="/spectrum"
+				class={`block rounded-md px-4 py-2 font-semibold transition md:px-5 ${$page.url.pathname.startsWith('/live') || $page.url.pathname.startsWith('/spectrum') ? 'bg-[rgb(var(--primary))] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text)]'}`}
+				onclick={() => (mobileOpen = false)}
 			>
-				<span
-					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
-					class:opacity-100={mobileOpen}>DRAFTS</span
-				>
-			</div>
-		</a>
-
-		<a
-			href="/live"
-			bind:this={liveEl}
-			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-24' : 'h-2 w-4'} group-hover:h-12 group-hover:w-24 ${$page.url.pathname.startsWith('/live') ? 'bg-[rgb(var(--primary))] text-white opacity-100' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'} ${!$page.url.pathname.startsWith('/live') && !mobileOpen ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}
-			style="transform-origin: top center;"
-		>
-			<div
-				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
-			>
-				<span
-					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
-					class:opacity-100={mobileOpen}>LIVE</span
-				>
-			</div>
-		</a>
-	</div>
+				Spectrum
+			</a>
+		</div>
+	</nav>
 
 	<div
-		class="search-shell mt-5 flex h-10 items-center gap-2 transition-all duration-500 ease-out"
-		class:overlay-active={searchActive}
+		class="search-shell mt-5 flex h-10 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-[var(--text)] transition-all duration-500 ease-out focus-within:border-[rgb(var(--primary))]"
 	>
 		<button
 			type="button"
-			class="material-symbols-outlined hover:text-accent text-xl text-gray-500 transition-colors select-none focus:outline-none"
+			class="material-symbols-outlined hover:text-accent text-xl text-[var(--text-secondary)] transition-colors select-none focus:outline-none"
 			onclick={() => inputEl?.focus()}
 			aria-label="Focus search input">search</button
 		>
@@ -246,7 +113,7 @@
 			bind:this={inputEl}
 			bind:value={searchQuery}
 			placeholder="SEARCH"
-			class="flex-1 bg-transparent text-white placeholder:bg-transparent placeholder:text-white/40 focus:text-white focus:outline-none"
+			class="flex-1 bg-transparent text-[var(--text)] placeholder:bg-transparent placeholder:text-[var(--text-secondary)] focus:outline-none"
 		/>
 	</div>
 
@@ -276,16 +143,36 @@
 					{/if}
 				</a>
 				<!-- Settings button on hover -->
-				<a
-					href="/settings"
-					class="absolute top-0 right-0 flex h-8 w-8 items-center justify-center bg-[rgb(var(--primary))] text-white opacity-0 transition-all duration-300 group-hover:opacity-100 hover:brightness-110"
-					title="Settings"
-					style="z-index: 10;"
+				<div
+					class="absolute top-full right-0 z-50 hidden min-w-40 rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl group-focus-within:block group-hover:block"
 				>
-					<span class="material-symbols-outlined text-lg">settings</span>
-				</a>
+					<a
+						href="/tierlists/drafts"
+						class="block rounded-md px-4 py-2 font-semibold text-[var(--text)] transition hover:bg-[rgb(var(--primary))] hover:text-white"
+					>
+						Drafts
+					</a>
+					<a
+						href="/settings"
+						class="block rounded-md px-4 py-2 font-semibold text-[var(--text)] transition hover:bg-[rgb(var(--primary))] hover:text-white"
+					>
+						Settings
+					</a>
+					<button
+						type="button"
+						class="w-full rounded-md px-4 py-2 text-left font-semibold text-[var(--text)] transition hover:bg-[rgb(var(--primary))] hover:text-white"
+						onclick={handleSignOut}
+					>
+						Sign out
+					</button>
+				</div>
 			</div>
 		{:else}
+			<a
+				href="/tierlists/drafts"
+				class="flex h-10 items-center border border-[var(--border)] bg-[var(--surface)] px-4 py-2 font-medium text-[var(--text)] transition-colors hover:border-[rgb(var(--primary))]"
+				>Drafts</a
+			>
 			<button
 				class="flex h-full items-center gap-2 border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
 				onclick={handleGoogleLogin}

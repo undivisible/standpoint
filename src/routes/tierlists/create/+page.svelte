@@ -8,7 +8,7 @@
 		getTierlist,
 		updateTierlist
 	} from '$lib/firestore-polls-tierlists.js';
-	import { getAuth } from 'firebase/auth';
+	import { uploadFile } from '$lib/cloudflare-api';
 	import { searchForImages } from '$lib/google-images';
 	import LoadingIndicator from '../../../components/loading-indicator.svelte';
 	import { imageSearchLoading } from '$lib';
@@ -328,8 +328,6 @@
 			uploadingImages = true;
 			uploadProgress = 0;
 			let payload = buildTierlistPayload($currentUser.uid);
-			const { getStorage, ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-			const storage = getStorage();
 			const dataUrlEntries: { kind: 'item' | 'banner'; ref: any }[] = [];
 			for (const it of payload.items) {
 				if (it.image && it.image.startsWith('data:'))
@@ -353,9 +351,7 @@
 				const file = new Blob([ab], { type: mime });
 				const pathFolder = entry.kind === 'banner' ? 'tierlist-banners' : 'tierlist-items';
 				const fileName = `${Date.now()}_${crypto.randomUUID()}.${extension}`;
-				const fileRef = ref(storage, `${pathFolder}/${fileName}`);
-				await uploadBytes(fileRef, file);
-				const url = await getDownloadURL(fileRef);
+				const url = await uploadFile(file, pathFolder, fileName);
 				if (entry.kind === 'item') entry.ref.image = url;
 				else entry.ref.banner_image = url;
 				completed += 1;
@@ -429,8 +425,6 @@
 			uploadingImages = true;
 			uploadProgress = 0;
 			let payload = buildTierlistPayload($currentUser.uid);
-			const { getStorage, ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-			const storage = getStorage();
 			const dataUrlEntries: { kind: 'item' | 'banner'; ref: any }[] = [];
 			for (const it of payload.items) {
 				if (it.image && it.image.startsWith('data:'))
@@ -454,9 +448,7 @@
 				const file = new Blob([ab], { type: mime });
 				const pathFolder = entry.kind === 'banner' ? 'tierlist-banners' : 'tierlist-items';
 				const fileName = `${Date.now()}_${crypto.randomUUID()}.${extension}`;
-				const fileRef = ref(storage, `${pathFolder}/${fileName}`);
-				await uploadBytes(fileRef, file);
-				const url = await getDownloadURL(fileRef);
+				const url = await uploadFile(file, pathFolder, fileName);
 				if (entry.kind === 'item') entry.ref.image = url;
 				else entry.ref.banner_image = url;
 				completed += 1;
@@ -1555,13 +1547,7 @@
 				const file = item.getAsFile();
 				if (file) {
 					try {
-						const { getStorage, ref, uploadBytes, getDownloadURL } = await import(
-							'firebase/storage'
-						);
-						const storage = getStorage();
-						const fileRef = ref(storage, `tierlist-items/${Date.now()}_${file.name}`);
-						await uploadBytes(fileRef, file);
-						const url = await getDownloadURL(fileRef);
+						const url = await uploadFile(file, 'tierlist-items', `${Date.now()}_${file.name}`);
 						const newItem: TierItem = {
 							id: `item_${crypto.randomUUID()}`,
 							text: file.name,
@@ -1697,8 +1683,8 @@
 				return;
 			}
 
-			const auth = getAuth();
-			const ownerId = auth.currentUser ? auth.currentUser.uid : null;
+			const user = $currentUser;
+			const ownerId = user ? user.uid : null;
 			const placements = tierList.tiers.flatMap((tier: { items: TierItem[] }, tierIdx: number) =>
 				tier.items.map((item: TierItem, itemIdx: number) => ({
 					item_id: item.id,
@@ -1733,7 +1719,7 @@
 				comments: 0
 			};
 			let newTierlistId;
-			if (auth.currentUser) {
+			if (user) {
 				newTierlistId = await saveTierlistToFirestore(tierListData);
 				const localTierlists = localStorage.getItem(LOCAL_STORAGE_TIERLISTS_KEY);
 				if (localTierlists) {

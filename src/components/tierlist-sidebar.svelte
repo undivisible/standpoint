@@ -9,23 +9,11 @@
 	import { signInWithGoogle } from '$lib/stores';
 	import confetti from 'canvas-confetti';
 	import {
-		collection,
-		addDoc,
-		query,
-		where,
-		orderBy,
-		onSnapshot,
-		serverTimestamp,
-		doc,
-		setDoc,
-		deleteDoc,
-		getDoc
-	} from 'firebase/firestore';
-	import { db } from '$lib/firebase';
-	import {
 		likeTierlist,
 		unlikeTierlist,
-		hasUserLikedTierlist
+		hasUserLikedTierlist,
+		getTierlist,
+		deleteTierlistFromFirestore
 	} from '$lib/firestore-polls-tierlists.js';
 	import Modal from './modal.svelte';
 
@@ -122,7 +110,7 @@
 					localStorage.setItem('standpoint_local_tierlists', JSON.stringify(arr));
 				}
 			} else {
-				await deleteDoc(doc(db, 'tierlists', id.toString()));
+				await deleteTierlistFromFirestore(id.toString());
 			}
 			addToast('Tierlist deleted!', 'success');
 			goto('/tierlists');
@@ -201,16 +189,21 @@
 		try {
 			interacting = true;
 
-			await addDoc(collection(db, 'comments'), {
-				tierlistId: id.toString(),
-				text: commentText.trim(),
-				author: $currentUser.displayName || 'Anonymous',
-				authorUid: $currentUser.uid,
-				timestamp: serverTimestamp()
+			const response = await fetch(`/api/cloudflare/tierlists/${id.toString()}/comments`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					text: commentText.trim(),
+					author: $currentUser.displayName || 'Anonymous',
+					authorUid: $currentUser.uid,
+					userId: $currentUser.uid
+				})
 			});
+			if (!response.ok) throw new Error(await response.text());
 
 			commentText = '';
 			addToast('Comment added!', 'success');
+			loadComments();
 		} catch (error) {
 			console.error('Error adding comment:', error);
 			addToast('Failed to add comment', 'error');
@@ -219,75 +212,47 @@
 		}
 	}
 
-	function loadComments() {
+	async function loadComments() {
 		if (!id) return;
 		if (isLocal) return;
 
-		const commentsQuery = query(
-			collection(db, 'comments'),
-			where('tierlistId', '==', id.toString()),
-			orderBy('timestamp', 'desc')
-		);
-
-		unsubscribeComments = onSnapshot(
-			commentsQuery,
-			(snapshot: any) => {
-				commentsList = snapshot.docs.map((doc: any) => {
-					const data = doc.data();
-					return {
-						id: doc.id,
-						text: data.text,
-						author: data.author,
-						authorUid: data.authorUid,
-						timestamp: data.timestamp?.toMillis() || Date.now()
-					};
-				});
-				comments = commentsList.length;
-			},
-			(error: any) => {
-				console.error('Error loading comments:', error);
-			}
-		);
+		const response = await fetch(`/api/cloudflare/tierlists/${id.toString()}/comments`);
+		if (!response.ok) return;
+		const data = await response.json();
+		commentsList = (data.items || []).map((item: any) => ({
+			id: item.id,
+			text: item.text,
+			author: item.author || item.userDisplayName || 'Anonymous',
+			authorUid: item.authorUid || item.userId,
+			timestamp: item.createdAt ? new Date(item.createdAt).getTime() : Date.now()
+		}));
+		comments = commentsList.length;
+		unsubscribeComments = null;
 	}
 
 	async function loadLikes() {
 		if (!id) return;
 		if (isLocal) return;
 
-		const likesQuery = query(collection(db, 'tierlists', id.toString(), 'likes'));
-
-		unsubscribeLikes = onSnapshot(
-			likesQuery,
-			(snapshot: any) => {
-				likes = snapshot.size;
-
-				if ($currentUser) {
-					liked = snapshot.docs.some((doc: any) => doc.id === $currentUser.uid);
-				} else {
-					liked = false;
-				}
-			},
-			(error: any) => {
-				console.error('Error loading likes:', error);
-			}
+		const response = await fetch(
+			`/api/cloudflare/tierlists/${id.toString()}/likes${$currentUser ? `?userId=${encodeURIComponent($currentUser.uid)}` : ''}`
 		);
+		if (!response.ok) return;
+		const data = await response.json();
+		likes = data.count || 0;
+		liked = Boolean(data.liked);
+		unsubscribeLikes = null;
 	}
 
-	function loadForks() {
+	async function loadForks() {
 		if (!id) return;
 		if (isLocal) return;
 
-		const forksQuery = query(collection(db, 'forks'), where('tierlistId', '==', id.toString()));
-
-		unsubscribeForks = onSnapshot(
-			forksQuery,
-			(snapshot: any) => {
-				forks = snapshot.size;
-			},
-			(error: any) => {
-				console.error('Error loading forks:', error);
-			}
-		);
+		const response = await fetch(`/api/cloudflare/tierlists/${id.toString()}/interactions`);
+		if (!response.ok) return;
+		const data = await response.json();
+		forks = data.forks || 0;
+		unsubscribeForks = null;
 	}
 
 	async function forkTierlist() {
@@ -327,12 +292,15 @@
 			localStorage.setItem('standpoint_ai_suggestions', JSON.stringify(aiSuggestions));
 			localStorage.setItem('standpoint_ai_suggestions_enabled', 'true');
 
-			await addDoc(collection(db, 'forks'), {
-				tierlistId: id.toString(),
-				userUid: $currentUser.uid,
-				userName: $currentUser.displayName || 'Anonymous',
-				timestamp: serverTimestamp()
+			const response = await fetch(`/api/cloudflare/tierlists/${id.toString()}/forks`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					userUid: $currentUser.uid,
+					userName: $currentUser.displayName || 'Anonymous'
+				})
 			});
+			if (!response.ok) throw new Error(await response.text());
 
 			addToast('Tierlist forked! Redirecting to editor...', 'success');
 
@@ -483,22 +451,18 @@
 		if (!id) return;
 
 		try {
-			const tierlistRef = doc(db, 'tierlists', id.toString());
-			const tierlistDoc = await getDoc(tierlistRef);
+			const data = await getTierlist(id.toString());
 
-			if (tierlistDoc.exists()) {
-				const data = tierlistDoc.data();
+			if (data) {
 				isForked = data.isForked || false;
 				originalId = data.originalId || '';
 
 				if (isForked && originalId) {
-					const originalRef = doc(db, 'tierlists', originalId);
-					const originalDoc = await getDoc(originalRef);
+					const originalData = await getTierlist(originalId);
 
-					if (originalDoc.exists()) {
-						const originalData = originalDoc.data();
+					if (originalData) {
 						originalTitle = originalData.title || 'Original Tierlist';
-						originalAuthor = originalData.authorName || 'Unknown Author';
+						originalAuthor = (originalData as any).authorName || 'Unknown Author';
 					}
 				}
 			}

@@ -4,7 +4,6 @@
 	import { apiClient } from '$lib/api';
 	import { savePollToFirestore, getPollsFromFirestore } from '$lib/firestore-polls-tierlists';
 	import { getUserVote, saveUserVote, updatePollStatistics } from '$lib/poll-vote-functions';
-	import { getAuth } from 'firebase/auth';
 	import PollSidebar from '$lib/../components/poll-sidebar.svelte';
 	import ChartRenderer from '$lib/../components/chart-renderer.svelte';
 	import LoadingIndicator from '$lib/../components/loading-indicator.svelte';
@@ -156,12 +155,11 @@
 		try {
 			loading = true;
 			error = '';
-			const auth = getAuth();
 			let loadedPolls = await getPollsFromFirestore();
 			// Attach user votes if signed in
-			if (auth.currentUser) {
+			if ($currentUser) {
 				for (const poll of loadedPolls) {
-					const userVote = await getUserVote(poll.id, auth.currentUser.uid);
+					const userVote = await getUserVote(poll.id, $currentUser.uid);
 					if (userVote) {
 						poll.user_vote = userVote.position;
 						poll.user_vote_2d = userVote.position_2d;
@@ -305,13 +303,12 @@
 		if (!selectedPoll) return;
 
 		try {
-			const auth = getAuth();
 			const hadPreviousVote =
 				selectedPoll.user_vote !== undefined && selectedPoll.user_vote !== null;
 
 			// For Firebase users, store vote persistently
-			if (auth.currentUser) {
-				await saveUserVote(selectedPoll.id, auth.currentUser.uid, position, position2D);
+			if ($currentUser) {
+				await saveUserVote(selectedPoll.id, $currentUser.uid, position, position2D);
 				await updatePollStatistics(selectedPoll.id);
 
 				selectedPoll = {
@@ -339,7 +336,7 @@
 					voteData.position_2d = position2D;
 				}
 
-				const voteResponse = await apiClient.vote(selectedPoll.id, position, voteData);
+				const voteResponse: any = await apiClient.vote(selectedPoll.id, position, voteData);
 
 				if (
 					voteResponse &&
@@ -409,8 +406,7 @@
 				return;
 			}
 
-			const auth = getAuth();
-			const ownerId = auth.currentUser ? auth.currentUser.uid : null;
+			const ownerId = $currentUser ? $currentUser.uid : null;
 			const pollData = {
 				title: poll.title,
 				question: poll.title,
@@ -429,7 +425,7 @@
 				created_at: new Date().toISOString()
 			};
 			let newPollId;
-			if (auth.currentUser) {
+			if ($currentUser) {
 				newPollId = await savePollToFirestore(pollData);
 				// Sync any local polls to Firebase
 				const localPolls = localStorage.getItem(LOCAL_STORAGE_POLLS_KEY);

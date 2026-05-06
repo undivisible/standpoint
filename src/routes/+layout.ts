@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { User } from 'firebase/auth';
+import type { User } from '$lib/firebase';
 
 export async function load() {
 	// Return empty data during SSR, auth will be handled client-side
@@ -9,21 +9,8 @@ export async function load() {
 		};
 	}
 
-	// In browser, wait for auth to initialize
-	const { auth, hasFirebaseConfig } = await import('../lib/firebase');
-	if (!hasFirebaseConfig) {
-		return {
-			user: null as User | null
-		};
-	}
-	const { onAuthStateChanged } = await import('firebase/auth');
-
-	const user = await new Promise<User | null>((resolve) => {
-		const unsubscribe = onAuthStateChanged(auth, (user) => {
-			unsubscribe();
-			resolve(user);
-		});
-	});
+	const { refreshSession } = await import('../lib/stores');
+	const user = (await refreshSession()) as User | null;
 
 	return {
 		user

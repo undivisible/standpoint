@@ -215,7 +215,7 @@
 		try {
 			loading = true;
 			error = '';
-			const response = await apiClient.getTierList(String(tierListId));
+			const response: any = await apiClient.getTierList(String(tierListId));
 
 			const defaultColors = [
 				'#ff7f7f',
@@ -230,14 +230,14 @@
 				'#ff7fff'
 			];
 
-			const transformedTiers: DisplayTier[] = response.tiers.map((tier, index) => ({
+			const transformedTiers: DisplayTier[] = response.tiers.map((tier: any, index: number) => ({
 				...tier,
 				id: tier.name || `tier-${index}`,
 				color: tier.color || defaultColors[index % defaultColors.length],
 				items: []
 			}));
 
-			const allItems: TierItem[] = response.items.map((item) => {
+			const allItems: TierItem[] = response.items.map((item: any) => {
 				if (typeof item === 'string') {
 					return {
 						id: item,
@@ -258,7 +258,7 @@
 			});
 
 			if (response.item_placements && response.item_placements.length > 0) {
-				response.item_placements.forEach((placement, index) => {
+				response.item_placements.forEach((placement: any, index: number) => {
 					const item = allItems.find((item) => item.id === placement.item_id);
 					const tierByPosition = response.tiers[placement.tier_position];
 					const tier = transformedTiers.find((tier) => tier.name === tierByPosition?.name);

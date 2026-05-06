@@ -4,20 +4,6 @@
 	import confetti from 'canvas-confetti';
 	import { currentUser, userGroup } from '$lib/stores';
 	import { get } from 'svelte/store';
-	import { db } from '$lib/firebase';
-	import {
-		collection,
-		addDoc,
-		query,
-		where,
-		orderBy,
-		onSnapshot,
-		serverTimestamp,
-		deleteDoc,
-		doc,
-		setDoc,
-		getDocs
-	} from 'firebase/firestore';
 	import { addToast } from '$lib/toast';
 	import LoginModal from '../components/login-modal.svelte';
 	import { signInWithGoogle } from '$lib/stores';
@@ -108,7 +94,7 @@
 		}
 	});
 
-	function loadLikes() {
+	async function loadLikes() {
 		let pollId = typeof id === 'string' || typeof id === 'number' ? id.toString() : '';
 		if (
 			!pollId &&
@@ -118,22 +104,15 @@
 			pollId = pollData.id.toString();
 		}
 		if (!pollId) return;
-		const likesQuery = query(collection(db, 'polls', pollId, 'likes'));
-		unsubscribeLikes = onSnapshot(
-			likesQuery,
-			(snapshot) => {
-				likes = snapshot.size;
-				const user = get(currentUser);
-				if (user) {
-					liked = snapshot.docs.some((doc) => doc.id === user.uid);
-				} else {
-					liked = false;
-				}
-			},
-			(error) => {
-				console.error('Error loading likes:', error);
-			}
+		const user = get(currentUser);
+		const response = await fetch(
+			`/api/cloudflare/polls/${pollId}/likes${user ? `?userId=${encodeURIComponent(user.uid)}` : ''}`
 		);
+		if (!response.ok) return;
+		const data = await response.json();
+		likes = data.count || 0;
+		liked = Boolean(data.liked);
+		unsubscribeLikes = null;
 	}
 
 	async function handleLike(event?: Event) {
@@ -159,13 +138,24 @@
 		likeLoading = true;
 		try {
 			if (liked) {
-				await deleteDoc(doc(db, 'polls', pollId, 'likes', userId));
+				const response = await fetch(
+					`/api/cloudflare/polls/${pollId}/likes?userId=${encodeURIComponent(userId)}`,
+					{ method: 'DELETE' }
+				);
+				if (!response.ok) throw new Error(await response.text());
+				const data = await response.json();
+				likes = data.count || 0;
 				liked = false;
 				addToast('Removed like', 'success');
 			} else {
-				await setDoc(doc(db, 'polls', pollId, 'likes', userId), {
-					timestamp: serverTimestamp()
+				const response = await fetch(`/api/cloudflare/polls/${pollId}/likes`, {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ userId })
 				});
+				if (!response.ok) throw new Error(await response.text());
+				const data = await response.json();
+				likes = data.count || 0;
 				liked = true;
 				addToast('Liked poll!', 'success');
 				// Confetti
@@ -428,18 +418,21 @@
 
 		try {
 			// Add comment to Firebase
-			await addDoc(collection(db, 'comments'), {
-				itemId: id.toString(),
-				itemType: 'poll',
-				text: commentText.trim(),
-				userId: $currentUser.uid,
-				userDisplayName: $currentUser.displayName || 'Anonymous',
-				userPhotoURL: $currentUser.photoURL || '',
-				createdAt: serverTimestamp()
+			const response = await fetch(`/api/cloudflare/polls/${id.toString()}/comments`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					text: commentText.trim(),
+					userId: $currentUser.uid,
+					userDisplayName: $currentUser.displayName || 'Anonymous',
+					userPhotoURL: $currentUser.photoURL || ''
+				})
 			});
+			if (!response.ok) throw new Error(await response.text());
 
 			commentText = '';
 			addToast('Comment added!', 'success');
+			loadComments();
 		} catch (error) {
 			console.error('Error adding comment:', error);
 			addToast('Failed to add comment', 'error');
@@ -447,7 +440,7 @@
 	}
 
 	// Load comments from Firebase when component mounts
-	function loadComments() {
+	async function loadComments() {
 		let pollId = typeof id === 'string' || typeof id === 'number' ? id.toString() : '';
 		if (
 			!pollId &&
@@ -458,54 +451,36 @@
 		}
 		if (!pollId) return;
 
-		const commentsQuery = query(
-			collection(db, 'comments'),
-			where('itemId', '==', pollId),
-			where('itemType', '==', 'poll'),
-			orderBy('createdAt', 'desc')
-		);
-
-		unsubscribeComments = onSnapshot(
-			commentsQuery,
-			(snapshot) => {
-				commentsList = snapshot.docs.map((doc) => {
-					const data = doc.data();
-					return {
-						id: doc.id,
-						text: data.text,
-						createdAt: data.createdAt?.toDate() || new Date(),
-						userId: data.userId,
-						userDisplayName: data.userDisplayName || 'Anonymous',
-						userPhotoURL: data.userPhotoURL || ''
-					};
-				});
-				comments = commentsList.length;
-			},
-			(error) => {
-				console.error('Error loading comments:', error);
-			}
-		);
+		const response = await fetch(`/api/cloudflare/polls/${pollId}/comments`);
+		if (!response.ok) return;
+		const data = await response.json();
+		commentsList = (data.items || []).map((item: any) => ({
+			id: item.id,
+			text: item.text,
+			createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+			userId: item.userId,
+			userDisplayName: item.userDisplayName || 'Anonymous',
+			userPhotoURL: item.userPhotoURL || ''
+		}));
+		comments = commentsList.length;
+		unsubscribeComments = null;
 	}
 
 	async function deleteComment(commentId: string) {
 		if (!$currentUser) return;
 
 		try {
-			// Check if user is owner or admin before deleting
-			const commentDoc = await getDocs(
-				query(collection(db, 'comments'), where('__name__', '==', commentId))
-			);
-
-			if (commentDoc.empty) return;
-
-			const commentData = commentDoc.docs[0].data();
+			const commentData = commentsList.find((comment) => comment.id === commentId);
+			if (!commentData) return;
 			if (commentData.userId !== $currentUser.uid && $userGroup !== 'dev') {
 				addToast('You can only delete your own comments', 'error');
 				return;
 			}
 
-			await deleteDoc(doc(db, 'comments', commentId));
+			const response = await fetch(`/api/cloudflare/comments/${commentId}`, { method: 'DELETE' });
+			if (!response.ok) throw new Error(await response.text());
 			addToast('Comment deleted', 'success');
+			loadComments();
 		} catch (error) {
 			console.error('Error deleting comment:', error);
 			addToast('Failed to delete comment', 'error');
