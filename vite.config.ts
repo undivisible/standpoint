@@ -39,6 +39,6 @@ export default defineConfig({
 		]
 	},
 	preview: {
-		allowedHosts: ['standpoint.atechnology.company']
+		allowedHosts: ['standpoint.undivisible.dev']
 	}
 });

@@ -24,8 +24,8 @@ one day im going to have to pay for a bunch of gemini api credits and then im go
 
 - **Frontend**: Svelte + SvelteKit + TailwindCSS
 - **Server**: SvelteKit endpoints, Cloudflare Workers, Durable Objects
-- **Database**: Firebase Firestore, Cloudflare D1 for Standpoint Live rooms
-- **Authentication**: Firebase Auth
+- **Database**: Cloudflare D1 and R2
+- **Authentication**: Google OIDC on SvelteKit endpoints
 - **AI**: Gemini 2.5 Flash Lite
 - **Hosting**: Cloudflare
 
@@ -45,13 +45,15 @@ bun run check
 bun run test
 ```
 
-# cloudflare live rooms
+# cloudflare spectrum rooms
 
-Standpoint Live uses D1 for room persistence and a `RoomDO` Durable Object for realtime WebSocket gameplay.
+Standpoint uses D1 for app and room persistence, R2 for uploads, and a `RoomDO` Durable Object for realtime WebSocket gameplay.
 
 ```bash
 bunx wrangler d1 execute standpoint-db --file=migrations/0001_init.sql
 bunx wrangler d1 execute standpoint-db --file=migrations/0002_seed_cards.sql
+bunx wrangler d1 execute standpoint-db --file=migrations/0003_room_visibility.sql
+bunx wrangler d1 execute standpoint-db --file=migrations/0004_cloudflare_backend.sql
 bunx wrangler dev
 ```
 
@@ -65,7 +67,7 @@ bunx wrangler dev
 
 ### v0.7.0 - Pure SvelteKit Release
 
-- **removed Python/Sanic backend entirely** - now pure SvelteKit with Firebase
+- **removed Python/Sanic backend entirely** - now pure SvelteKit
 - **migrated Stripe to SvelteKit server routes** - checkout and verification working
 - **XSS prevention & security hardening** - input sanitization, CSP headers, validated inputs
 - **notification system with bundling** - like/comment/fork notifications bundle together intelligently
@@ -74,11 +76,11 @@ bunx wrangler dev
 - **theme system** - 10 beautiful themes (Dark, Light, Sepia, Nord, Dracula, Neo Tokyo, Taiga, Sunset, Midnight, Sakura)
 - **fork attribution** - tierlists properly link back to originals
 - **profile picture loading** - fixed avatar display in header
-- all data operations now use Firebase directly (polls, tierlists, votes)
+- all data operations now use SvelteKit endpoints directly (polls, tierlists, votes)
 - simplified architecture: one runtime, one deployment
 - fixed polls page preloading error
 - fixed all TypeScript and accessibility warnings
-- updated dev workflow to single `pnpm dev` command
+- updated dev workflow to single `bun run dev` command
 - editing tierlists
 
 ### v0.6.0
@@ -107,7 +109,7 @@ bunx wrangler dev
 - anything but fixing tierlist editing
 - enforced character limits on comments
 - file size limits and typechecking for images in tierlists
-- sequential uploading (doesn't move to firebase until publshing a tierlist)
+- sequential uploading
 - other bug fixes, visual and uniformity improvements and microoptimisations
 
 ### v0.4.1
@@ -157,9 +159,9 @@ _i want to sleep so bad_
 - critical bug fixes
 - non logged in users have tierlists that only save to their device
 
-### v0.2.0 - Firebase Integration
+### v0.2.0 - Data Integration
 
-- firebase integrations
+- data integrations
 - authentication and tierlist ownership
 - updated to gemini 2.5 flash lite (from 2.0 flash)
 - added banner images
@@ -197,7 +199,8 @@ _i want to sleep so bad_
 - change image api
 - multiplayer
 - live
-- make search more efficient with a firebase searching service
+- multiplayer tierlists with shared live editing, presence, cursors/selection, conflict handling, autosave, permissions, history and undo
+- make search more efficient
 - image logic after transferring to new implementation is cooked
 - image cropping after placing and more tools
 - item colors
