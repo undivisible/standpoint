@@ -3,12 +3,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { getContext, onMount } from 'svelte';
-	import {
-		currentUser,
-		userGroup,
-		signInWithGoogle,
-		signOutUser
-	} from '../lib/stores';
+	import { currentUser, userGroup, signInWithGoogle, signOutUser } from '../lib/stores';
 	import NotificationBell from './notification-bell.svelte';
 	import { getUserProfile } from '../lib/user-profile';
 
@@ -28,10 +23,11 @@
 	let mobileOpen = false;
 	let activeIndex: number = -1;
 	let navGroupEl: HTMLElement | null = null;
-	let linkEls: Array<{ el: HTMLElement; href: string } | null> = [null, null, null, null];
+	let linkEls: Array<{ el: HTMLElement; href: string } | null> = [null, null, null, null, null];
 	let homeEl: HTMLElement | null = null;
 	let pollsEl: HTMLElement | null = null;
 	let tierlistsEl: HTMLElement | null = null;
+	let liveEl: HTMLElement | null = null;
 	let draftsEl: HTMLElement | null = null;
 
 	function updateIsMobile() {
@@ -77,7 +73,8 @@
 			homeEl ? { el: homeEl, href: '/' } : null,
 			pollsEl ? { el: pollsEl, href: '/polls' } : null,
 			tierlistsEl ? { el: tierlistsEl, href: '/tierlists' } : null,
-			draftsEl ? { el: draftsEl, href: '/tierlists/drafts' } : null
+			draftsEl ? { el: draftsEl, href: '/tierlists/drafts' } : null,
+			liveEl ? { el: liveEl, href: '/live' } : null
 		];
 	}
 
@@ -214,6 +211,22 @@
 				<span
 					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
 					class:opacity-100={mobileOpen}>DRAFTS</span
+				>
+			</div>
+		</a>
+
+		<a
+			href="/live"
+			bind:this={liveEl}
+			class={`relative overflow-hidden transition-all duration-300 ease-out ${mobileOpen ? 'h-12 w-24' : 'h-2 w-4'} group-hover:h-12 group-hover:w-24 ${$page.url.pathname.startsWith('/live') ? 'bg-[rgb(var(--primary))] text-white opacity-100' : 'bg-gray-300 text-gray-900 hover:bg-gray-400/70'} ${!$page.url.pathname.startsWith('/live') && !mobileOpen ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}
+			style="transform-origin: top center;"
+		>
+			<div
+				class="absolute inset-0 flex items-center justify-center px-2 group-hover:justify-start group-hover:pl-2"
+			>
+				<span
+					class="text-center text-lg font-bold whitespace-nowrap opacity-0 transition-opacity delay-150 duration-300 group-hover:opacity-100"
+					class:opacity-100={mobileOpen}>LIVE</span
 				>
 			</div>
 		</a>

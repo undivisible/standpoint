@@ -22,9 +22,19 @@ export default ts.config(
 		},
 		rules: {
 			'no-undef': 'off',
+			'no-empty': 'warn',
+			'prefer-const': 'warn',
+			'@typescript-eslint/no-empty-object-type': 'warn',
+			'@typescript-eslint/no-require-imports': 'warn',
 			'@typescript-eslint/no-unused-vars': 'warn',
 			'@typescript-eslint/no-explicit-any': 'warn',
-			'svelte/no-at-html-tags': 'warn'
+			'svelte/infinite-reactive-loop': 'warn',
+			'svelte/no-at-html-tags': 'warn',
+			'svelte/no-immutable-reactive-statements': 'warn',
+			'svelte/no-reactive-reassign': 'warn',
+			'svelte/no-unused-svelte-ignore': 'warn',
+			'svelte/prefer-svelte-reactivity': 'warn',
+			'svelte/require-each-key': 'warn'
 		}
 	},
 	{

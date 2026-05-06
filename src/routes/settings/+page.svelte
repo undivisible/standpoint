@@ -465,7 +465,6 @@
 							>
 								<span class="material-symbols-outlined mr-3 text-sm">{item.icon}</span>
 								{item.label}
-
 							</button>
 						{/each}
 					</nav>

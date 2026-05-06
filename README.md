@@ -23,22 +23,42 @@ one day im going to have to pay for a bunch of gemini api credits and then im go
 ## standpoint is made with
 
 - **Frontend**: Svelte + SvelteKit + TailwindCSS
-- **Server**: SvelteKit endpoints (Stripe, Firebase helpers)
-- **Database**: Firebase Firestore
+- **Server**: SvelteKit endpoints, Cloudflare Workers, Durable Objects
+- **Database**: Firebase Firestore, Cloudflare D1 for Standpoint Live rooms
 - **Authentication**: Firebase Auth
 - **AI**: Gemini 2.5 Flash Lite
-- **Payments**: Stripe
-- **Hosting**: Railway
+- **Hosting**: Cloudflare
 
 # run dev server
 
 ```bash
-pnpm dev
+bun install
+bun run dev
+```
+
+# run checks
+
+```bash
+bun run format
+bun run lint
+bun run check
+bun run test
+```
+
+# cloudflare live rooms
+
+Standpoint Live uses D1 for room persistence and a `RoomDO` Durable Object for realtime WebSocket gameplay.
+
+```bash
+bunx wrangler d1 execute standpoint-db --file=migrations/0001_init.sql
+bunx wrangler d1 execute standpoint-db --file=migrations/0002_seed_cards.sql
+bunx wrangler dev
 ```
 
 ## Version History
 
 ### v0.7.1
+
 - visual improvements
 - (need to fix a few things i cbf rn)
 - will put this on lts sometime i got other things to do

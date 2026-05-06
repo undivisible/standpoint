@@ -1,0 +1,20 @@
+name = "standpoint"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-05-06"
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "standpoint-db"
+database_id = "standpoint-db"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RoomDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomDO"]

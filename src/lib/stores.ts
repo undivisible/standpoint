@@ -32,6 +32,7 @@ export const currentUser = firebaseUser;
 
 // Store for user group — always 'user' (no paid plan)
 export const userGroup = writable<string | null>(null);
+export const hasProAccessStore = writable(true);
 
 // Derived store for current user profile
 export const currentUserProfile = derived(firebaseUser, ($firebaseUser, set) => {
