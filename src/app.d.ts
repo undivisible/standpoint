@@ -23,6 +23,19 @@ declare global {
 		get(id: DurableObjectId): DurableObjectStub;
 	}
 	type DurableObjectId = object;
+	interface R2ObjectBody {
+		writeHttpMetadata(headers: Headers): void;
+		body: ReadableStream;
+	}
+	interface R2Bucket {
+		put(
+			key: string,
+			value: ReadableStream | ArrayBuffer | ArrayBufferView | string | Blob,
+			options?: { httpMetadata?: Record<string, string> }
+		): Promise<unknown>;
+		get(key: string): Promise<R2ObjectBody | null>;
+		delete(key: string): Promise<void>;
+	}
 	interface WebSocket {
 		accept(): void;
 	}
@@ -41,6 +54,10 @@ declare global {
 			env: {
 				DB: D1Database;
 				ROOMS: DurableObjectNamespace;
+				UPLOADS: R2Bucket;
+				GOOGLE_CLIENT_ID?: string;
+				GOOGLE_CLIENT_SECRET?: string;
+				AUTH_COOKIE_SECRET?: string;
 			};
 		}
 	}

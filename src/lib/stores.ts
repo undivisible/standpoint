@@ -1,17 +1,9 @@
 import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 
-import { auth, firebaseUser, db } from './firebase';
-import {
-	GoogleAuthProvider,
-	signInWithPopup,
-	signOut,
-	onAuthStateChanged,
-	type User
-} from 'firebase/auth';
-import { getDoc, doc, setDoc } from 'firebase/firestore';
+import { auth, firebaseUser, type User } from './firebase';
+import { apiPatch, getSessionUser } from './cloudflare-api';
 import { setAccent } from './accent';
-import { getUserGroup, setUserGroup } from './user-groups';
 
 export interface ImageResult {
 	url: string;
@@ -33,58 +25,54 @@ export const currentUser = firebaseUser;
 // Store for user group — always 'user' (no paid plan)
 export const userGroup = writable<string | null>(null);
 export const hasProAccessStore = writable(true);
-const firebaseReady = Boolean(auth && db);
 
 // Derived store for current user profile
 export const currentUserProfile = derived(firebaseUser, ($firebaseUser, set) => {
-	if (browser && firebaseReady && $firebaseUser) {
-		getDoc(doc(db, 'users', $firebaseUser.uid)).then((userDoc) => {
-			set(userDoc.exists() ? { ...userDoc.data(), id: $firebaseUser.uid } : null);
-		});
-	} else {
-		set(null);
-	}
+	set($firebaseUser);
 });
 
-// Listen for auth state changes (only in browser)
-if (browser && firebaseReady) {
-	onAuthStateChanged(auth, async (user) => {
+async function loadSession() {
+	if (!browser) return;
+	try {
+		const user = await getSessionUser();
 		currentUser.set(user);
-		if (user) {
-			userGroup.set('user');
-			// Load user preferences (accent/theme)
+		auth.currentUser = user;
+		userGroup.set(user ? 'user' : null);
+		const prefs = user?.preferences;
+		if (prefs?.accent) setAccent(String(prefs.accent));
+		// If the user has per-theme accents stored in preferences, copy them
+		// into localStorage so the theme system picks them up on the client.
+		if (prefs?.themeAccents) {
 			try {
-				const snap = await getDoc(doc(db, 'users', user.uid));
-				if (snap.exists()) {
-					const prefs = (snap.data() as any)?.preferences;
-					if (prefs?.accent) setAccent(prefs.accent);
-					// If the user has per-theme accents stored in preferences, copy them
-					// into localStorage so the theme system picks them up on the client.
-					if (prefs?.themeAccents) {
-						try {
-							localStorage.setItem('standpoint_theme_accents', JSON.stringify(prefs.themeAccents));
-						} catch (e) {
-							console.warn('Failed to sync theme accents to localStorage', e);
-						}
-					}
-				}
+				localStorage.setItem('standpoint_theme_accents', JSON.stringify(prefs.themeAccents));
 			} catch (e) {
-				console.warn('Failed loading user prefs', e);
+				console.warn('Failed to sync theme accents to localStorage', e);
 			}
-		} else {
-			userGroup.set(null);
 		}
-	});
+	} catch (e) {
+		console.warn('Failed loading user prefs', e);
+		currentUser.set(null);
+		userGroup.set(null);
+	}
+}
+
+export async function refreshSession() {
+	await loadSession();
+	return auth.currentUser;
+}
+
+// Listen for auth state changes (only in browser)
+if (browser) {
+	loadSession();
 }
 
 // Helper to persist theme mode (light/dark)
 export async function persistThemeMode(mode: 'light' | 'dark') {
 	if (!browser) return;
-	if (!firebaseReady) return;
 	const user = auth.currentUser;
 	if (!user) return;
 	try {
-		await setDoc(doc(db, 'users', user.uid), { preferences: { theme: mode } }, { merge: true });
+		await apiPatch(`users/${encodeURIComponent(user.uid)}`, { preferences: { theme: mode } });
 	} catch (e) {
 		console.warn('Failed to persist theme mode', e);
 	}
@@ -93,14 +81,17 @@ export async function persistThemeMode(mode: 'light' | 'dark') {
 // Sign in with Google
 export async function signInWithGoogle() {
 	if (!browser) return;
-	if (!firebaseReady) return;
-	const provider = new GoogleAuthProvider();
-	await signInWithPopup(auth, provider);
+	const redirectTo = encodeURIComponent(location.pathname + location.search);
+	location.href = `/api/auth/google/start?redirectTo=${redirectTo}`;
 }
 
 // Sign out
 export async function signOutUser() {
 	if (!browser) return;
-	if (!firebaseReady) return;
-	await signOut(auth);
+	await fetch('/api/auth/session', { method: 'DELETE' });
+	currentUser.set(null);
+	auth.currentUser = null;
+	userGroup.set(null);
 }
+
+export type { User };

@@ -1,8 +1,7 @@
 import { writable } from 'svelte/store';
-import { db } from './firebase';
 import { get } from 'svelte/store';
 import { currentUser } from './stores';
-import { doc, setDoc } from 'firebase/firestore';
+import { apiPatch } from './cloudflare-api';
 
 export const accentColor = writable<string>('orange');
 
@@ -43,7 +42,7 @@ export async function setAccent(color: string) {
 	try {
 		const user = get(currentUser);
 		if (user) {
-			await setDoc(doc(db, 'users', user.uid), { preferences: { accent: color } }, { merge: true });
+			await apiPatch(`users/${encodeURIComponent(user.uid)}`, { preferences: { accent: color } });
 		}
 	} catch (e) {
 		console.warn('Failed to persist accent preference', e);

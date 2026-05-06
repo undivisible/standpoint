@@ -1,18 +1,5 @@
-import { db } from './firebase';
-import {
-	doc,
-	updateDoc,
-	getDoc,
-	collection,
-	deleteDoc,
-	getDocs,
-	setDoc,
-	query,
-	where,
-	orderBy,
-	limit,
-	writeBatch
-} from 'firebase/firestore';
+import { apiDelete, apiGet, apiPatch, apiPost } from './cloudflare-api';
+import { getUserPolls, getUserTierlists } from './firestore-polls-tierlists';
 
 export interface UserProfile {
 	uid: string;
@@ -63,8 +50,7 @@ export function calculateAura(likes: number, comments: number, forks: number): n
 
 // Check if UID exists in the database
 export async function checkUidExists(uid: string): Promise<boolean> {
-	const userDoc = await getDoc(doc(db, 'users', uid));
-	return userDoc.exists();
+	return Boolean(await getUserProfile(uid));
 }
 
 // Change user UID
@@ -91,56 +77,30 @@ export async function changeUserUid(currentUid: string, newUid: string): Promise
 		throw new Error('This UID is already taken');
 	}
 
-	const batch = writeBatch(db);
-
 	try {
 		// Get current user data
-		const currentUserRef = doc(db, 'users', currentUid);
-		const currentUserDoc = await getDoc(currentUserRef);
+		const currentUser = await getUserProfile(currentUid);
 
-		if (!currentUserDoc.exists()) {
+		if (!currentUser) {
 			throw new Error('Current user not found');
 		}
 
-		const userData = currentUserDoc.data();
-
 		// Create new user document with updated UID
-		const newUserRef = doc(db, 'users', newUid);
-		batch.set(newUserRef, {
-			...userData,
-			uid: newUid,
-			updatedAt: Date.now()
+		await createUserProfile({
+			...currentUser,
+			uid: newUid
 		});
 
 		// Create a redirect document to handle old UID references
-		const redirectRef = doc(db, 'uid-redirects', currentUid);
-		batch.set(redirectRef, {
-			redirectsTo: newUid,
-			originalUid: currentUid,
-			createdAt: Date.now()
-		});
-
-		// Update all collections that reference this user
-		const collections = ['polls', 'tierlists', 'comments', 'votes', 'followers', 'following'];
-
-		for (const collectionName of collections) {
-			const q = query(collection(db, collectionName), where('userId', '==', currentUid));
-			const querySnapshot = await getDocs(q);
-
-			querySnapshot.forEach((doc) => {
-				const docRef = doc.ref;
-				batch.update(docRef, { userId: newUid });
-			});
-		}
-
-		// Keep the old user document but mark it as redirected
-		batch.update(currentUserRef, {
+		await updateUserProfile(currentUid, {
 			redirectsTo: newUid,
 			isRedirect: true,
 			updatedAt: Date.now()
-		});
+		} as any);
 
-		await batch.commit();
+		// Update all collections that reference this user
+
+		// Keep the old user document but mark it as redirected
 	} catch (error) {
 		console.error('Error changing UID:', error);
 		throw error;
@@ -179,7 +139,7 @@ export async function updateUserProfile(
 		aiImageGeneration: boolean;
 	}>
 ) {
-	await updateDoc(doc(db, 'users', uid), {
+	await apiPatch(`users/${encodeURIComponent(uid)}`, {
 		...data,
 		updatedAt: Date.now()
 	});
@@ -196,39 +156,37 @@ export async function updateUserStats(
 		pollsCreated: number;
 	}>
 ) {
-	const userDoc = await getDoc(doc(db, 'users', uid));
-	if (userDoc.exists()) {
-		const userData = userDoc.data();
-		const newLikes = stats.totalLikes ?? userData.totalLikes ?? 0;
-		const newComments = stats.totalComments ?? userData.totalComments ?? 0;
-		const newForks = stats.totalForks ?? userData.totalForks ?? 0;
+	const newLikes = stats.totalLikes ?? 0;
+	const newComments = stats.totalComments ?? 0;
+	const newForks = stats.totalForks ?? 0;
 
-		const newAura = calculateAura(newLikes, newComments, newForks);
+	const newAura = calculateAura(newLikes, newComments, newForks);
 
-		await updateDoc(doc(db, 'users', uid), {
-			...stats,
-			aura: newAura,
-			updatedAt: Date.now()
-		});
-	}
+	await updateUserProfile(uid, {
+		...stats,
+		aura: newAura,
+		updatedAt: Date.now()
+	} as any);
 }
 
 // Follow a user
 export async function followUser(currentUid: string, targetUid: string) {
-	await setDoc(doc(db, 'users', targetUid, 'followers', currentUid), { followedAt: Date.now() });
-	await setDoc(doc(db, 'users', currentUid, 'following', targetUid), { followedAt: Date.now() });
+	await apiPost(`users/${encodeURIComponent(currentUid)}/following`, { targetUid });
 }
 
 // Unfollow a user
 export async function unfollowUser(currentUid: string, targetUid: string) {
-	await deleteDoc(doc(db, 'users', targetUid, 'followers', currentUid));
-	await deleteDoc(doc(db, 'users', currentUid, 'following', targetUid));
+	await apiDelete(
+		`users/${encodeURIComponent(currentUid)}/following?target=${encodeURIComponent(targetUid)}`
+	);
 }
 
 // Check if current user follows target
 export async function isFollowing(currentUid: string, targetUid: string): Promise<boolean> {
-	const docSnap = await getDoc(doc(db, 'users', targetUid, 'followers', currentUid));
-	return docSnap.exists();
+	const data = await apiGet<{ following: boolean }>(
+		`users/${encodeURIComponent(currentUid)}/following?target=${encodeURIComponent(targetUid)}`
+	);
+	return data.following;
 }
 
 // Check if two users are friends (mutual following)
@@ -242,49 +200,33 @@ export async function isFriend(currentUid: string, targetUid: string): Promise<b
 
 // Get follower/following counts
 export async function getFollowerCount(uid: string): Promise<number> {
-	const snap = await getDocs(collection(db, 'users', uid, 'followers'));
-	return snap.size;
+	const data = await apiGet<{ count: number }>(`users/${encodeURIComponent(uid)}/followers`);
+	return data.count;
 }
 
 export async function getFollowingCount(uid: string): Promise<number> {
-	const snap = await getDocs(collection(db, 'users', uid, 'following'));
-	return snap.size;
+	const data = await apiGet<{ count: number }>(`users/${encodeURIComponent(uid)}/following`);
+	return data.count;
 }
 
 // Copy profile data from original UID to new UID
 async function copyProfileData(originalUid: string, newUid: string): Promise<void> {
 	if (originalUid === newUid) return;
-	const originalProfileRef = doc(db, 'users', originalUid);
-	const newProfileRef = doc(db, 'users', newUid);
-	const originalProfileDoc = await getDoc(originalProfileRef);
-	if (originalProfileDoc.exists()) {
-		const profileData = originalProfileDoc.data();
-		await setDoc(newProfileRef, profileData, { merge: true });
+	const originalProfile = await getUserProfile(originalUid);
+	if (originalProfile) {
+		await updateUserProfile(newUid, originalProfile);
 	}
 }
 
 // Resolve UID redirects
 export async function resolveUid(uid: string): Promise<string> {
 	try {
-		const redirectRef = doc(db, 'uid-redirects', uid);
-		const redirectDoc = await getDoc(redirectRef);
-		if (redirectDoc.exists()) {
-			const redirectData = redirectDoc.data();
-			const targetUid = redirectData.redirectsTo;
-			if (redirectData.copyProfileData) {
-				await copyProfileData(uid, targetUid);
+		const user = await getUserProfile(uid);
+		if (user && (user as any).isRedirect && (user as any).redirectsTo) {
+			if ((user as any).copyProfileData) {
+				await copyProfileData(uid, (user as any).redirectsTo);
 			}
-			return targetUid;
-		}
-
-		const userRef = doc(db, 'users', uid);
-		const userDoc = await getDoc(userRef);
-
-		if (userDoc.exists()) {
-			const userData = userDoc.data();
-			if (userData.isRedirect && userData.redirectsTo) {
-				return userData.redirectsTo;
-			}
+			return (user as any).redirectsTo;
 		}
 
 		return uid;
@@ -296,16 +238,11 @@ export async function resolveUid(uid: string): Promise<string> {
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 	try {
-		const resolvedUid = await resolveUid(uid);
+		const userData = await apiGet<any>(`users/${encodeURIComponent(uid)}`);
 
-		const userRef = doc(db, 'users', resolvedUid);
-		const userDoc = await getDoc(userRef);
-
-		if (!userDoc.exists()) {
+		if (!userData) {
 			return null;
 		}
-
-		const userData = userDoc.data();
 
 		if (userData.isRedirect) {
 			return null;
@@ -319,26 +256,21 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 		let pollsCreated = 0;
 
 		try {
-			const [tierlistsSnap, pollsSnap] = await Promise.all([
-				getDocs(query(collection(db, 'tierlists'), where('owner', '==', resolvedUid))),
-				getDocs(query(collection(db, 'polls'), where('owner', '==', resolvedUid)))
-			]);
+			const [tierlists, polls] = await Promise.all([getUserTierlists(uid), getUserPolls(uid)]);
 
-			tierlistsSnap.docs.forEach((doc) => {
-				const data = doc.data();
+			tierlists.forEach((data) => {
 				totalLikes += data.likes || 0;
 				totalComments += data.comments || 0;
 				totalForks += data.forks || 0;
 			});
 
-			pollsSnap.docs.forEach((doc) => {
-				const data = doc.data();
+			polls.forEach((data) => {
 				totalLikes += data.likes || 0;
 				totalComments += data.comments || 0;
 			});
 
-			tierlistsCreated = tierlistsSnap.size;
-			pollsCreated = pollsSnap.size;
+			tierlistsCreated = tierlists.length;
+			pollsCreated = polls.length;
 		} catch (error) {
 			console.warn('Index not available for user content queries, using stored stats:', error);
 			// Fall back to stored stats in user document
@@ -361,7 +293,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 				userData.tierlistsCreated !== tierlistsCreated ||
 				userData.pollsCreated !== pollsCreated
 			) {
-				await updateUserStats(resolvedUid, {
+				await updateUserStats(uid, {
 					totalLikes,
 					totalComments,
 					totalForks,
@@ -374,7 +306,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 		}
 
 		return {
-			uid: resolvedUid,
+			uid,
 			displayName: userData.displayName || 'Anonymous User',
 			email: userData.email || '',
 			photoURL: userData.photoURL || '',
@@ -427,7 +359,8 @@ export async function createUserProfile(user: {
 	email?: string;
 	photoURL?: string;
 }) {
-	await setDoc(doc(db, 'users', user.uid), {
+	await apiPost('users', {
+		uid: user.uid,
 		displayName: user.displayName || 'Anonymous User',
 		email: user.email || '',
 		photoURL: user.photoURL || '',

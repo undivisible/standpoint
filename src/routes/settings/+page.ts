@@ -2,7 +2,7 @@ import type { PageLoad } from './$types';
 import { getUserProfile, createUserProfile, type UserProfile } from '../../lib/user-profile';
 import { redirect } from '@sveltejs/kit';
 import { browser } from '$app/environment';
-import type { User } from 'firebase/auth';
+import type { User } from '../../lib/firebase';
 
 export const load: PageLoad = async ({ parent }) => {
 	const { user }: { user: User | null } = await parent();

@@ -1,16 +1,4 @@
-import { db } from './firebase';
-import {
-	collection,
-	query,
-	where,
-	orderBy,
-	limit as firestoreLimit,
-	getDocs,
-	setDoc,
-	doc,
-	serverTimestamp,
-	type Timestamp
-} from 'firebase/firestore';
+import { apiPost } from './cloudflare-api';
 
 interface FirebaseNotification {
 	type: 'like' | 'comment' | 'fork' | 'mention';
@@ -19,7 +7,7 @@ interface FirebaseNotification {
 	contentTitle: string;
 	fromUserId: string;
 	fromUserName?: string;
-	timestamp: Timestamp;
+	timestamp: unknown;
 	read: boolean;
 	bundleKey?: string; // Key for bundling similar notifications
 }
@@ -45,55 +33,12 @@ export async function createBundledNotification(
 		const oneDayAgo = new Date();
 		oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
-		const notificationsRef = collection(db, 'users', ownerId, 'notifications');
-		const q = query(
-			notificationsRef,
-			where('bundleKey', '==', bundleKey),
-			where('read', '==', false),
-			orderBy('timestamp', 'desc'),
-			firestoreLimit(1)
-		);
-
-		const snapshot = await getDocs(q);
-
-		if (!snapshot.empty) {
-			// Found existing unread notification - update it instead of creating new one
-			const existingDoc = snapshot.docs[0];
-			const existingData = existingDoc.data() as FirebaseNotification;
-
-			// Get existing user IDs or initialize
-			const existingUserIds: string[] = (existingData as any).userIds || [existingData.fromUserId];
-
-			// Add new user if not already in list
-			if (!existingUserIds.includes(notification.fromUserId)) {
-				existingUserIds.push(notification.fromUserId);
-
-				// Update the existing notification
-				await setDoc(
-					doc(db, 'users', ownerId, 'notifications', existingDoc.id),
-					{
-						...existingData,
-						userIds: existingUserIds,
-						count: existingUserIds.length,
-						lastUserId: notification.fromUserId,
-						lastUserName: notification.fromUserName,
-						timestamp: serverTimestamp(), // Update timestamp to most recent
-						read: false // Keep unread
-					},
-					{ merge: true }
-				);
-
-				console.log(`Bundled notification for ${bundleKey}, now ${existingUserIds.length} users`);
-				return;
-			}
-		}
-
 		// No existing notification found or time window expired - create new one
-		const notificationId = `${Date.now()}_${notification.fromUserId}`;
-		await setDoc(doc(db, 'users', ownerId, 'notifications', notificationId), {
+		await apiPost('notifications', {
+			ownerId,
 			...notification,
 			bundleKey,
-			timestamp: serverTimestamp(),
+			timestamp: oneDayAgo.toISOString(),
 			read: false,
 			userIds: [notification.fromUserId],
 			count: 1

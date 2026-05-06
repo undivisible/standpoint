@@ -1,5 +1,4 @@
-import { db } from './firebase.js';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { apiGet } from './cloudflare-api';
 import type { TierlistData, PollData } from './firestore-polls-tierlists.js';
 
 // Search limit
@@ -8,27 +7,10 @@ const SEARCH_LIMIT = 20;
 // Search Polls
 export async function searchTierlists(searchQuery: string): Promise<TierlistData[]> {
 	try {
-		const searchTerm = searchQuery.toLowerCase();
-
-		const q = query(collection(db, 'tierlists'), orderBy('created_at', 'desc'), limit(100));
-
-		const snapshot = await getDocs(q);
-		const allTierlists = snapshot.docs.map((doc) => ({
-			id: doc.id,
-			...doc.data()
-		})) as TierlistData[];
-
-		// Client-side filtering for title and description
-		return allTierlists
-			.filter((tierlist) => {
-				const isPublished = !tierlist.status || tierlist.status === 'published';
-				if (!isPublished) return false;
-
-				const title = (tierlist.title || '').toLowerCase();
-				const description = (tierlist.description || '').toLowerCase();
-				return title.includes(searchTerm) || description.includes(searchTerm);
-			})
-			.slice(0, SEARCH_LIMIT);
+		const data = await apiGet<{ tierlists: TierlistData[] }>(
+			`search?type=tierlists&q=${encodeURIComponent(searchQuery)}`
+		);
+		return data.tierlists.slice(0, SEARCH_LIMIT);
 	} catch (error) {
 		console.error('Error searching tierlists:', error);
 		return [];
@@ -38,26 +20,10 @@ export async function searchTierlists(searchQuery: string): Promise<TierlistData
 // Search Polls
 export async function searchPolls(searchQuery: string): Promise<PollData[]> {
 	try {
-		const searchTerm = searchQuery.toLowerCase();
-
-		const q = query(collection(db, 'polls'), orderBy('created_at', 'desc'), limit(100));
-
-		const snapshot = await getDocs(q);
-		const allPolls = snapshot.docs.map((doc) => ({
-			id: doc.id,
-			...doc.data()
-		})) as PollData[];
-
-		return allPolls
-			.filter((poll) => {
-				const isPublished = !poll.status || poll.status === 'published';
-				if (!isPublished) return false;
-
-				const title = (poll.title || '').toLowerCase();
-				const description = (poll.description || '').toLowerCase();
-				return title.includes(searchTerm) || description.includes(searchTerm);
-			})
-			.slice(0, SEARCH_LIMIT);
+		const data = await apiGet<{ polls: PollData[] }>(
+			`search?type=polls&q=${encodeURIComponent(searchQuery)}`
+		);
+		return data.polls.slice(0, SEARCH_LIMIT);
 	} catch (error) {
 		console.error('Error searching polls:', error);
 		return [];
@@ -67,23 +33,10 @@ export async function searchPolls(searchQuery: string): Promise<PollData[]> {
 // Search users
 export async function searchUsers(searchQuery: string): Promise<any[]> {
 	try {
-		const searchTerm = searchQuery.toLowerCase();
-
-		const q = query(collection(db, 'users'), orderBy('displayName'), limit(100));
-
-		const snapshot = await getDocs(q);
-		const allUsers = snapshot.docs.map((doc) => ({
-			uid: doc.id,
-			...doc.data()
-		})) as any[];
-
-		return allUsers
-			.filter((user: any) => {
-				const displayName = (user.displayName || '').toLowerCase();
-				const bio = (user.bio || '').toLowerCase();
-				return displayName.includes(searchTerm) || bio.includes(searchTerm);
-			})
-			.slice(0, SEARCH_LIMIT);
+		const data = await apiGet<{ users: any[] }>(
+			`search?type=users&q=${encodeURIComponent(searchQuery)}`
+		);
+		return data.users.slice(0, SEARCH_LIMIT);
 	} catch (error) {
 		console.error('Error searching users:', error);
 		return [];

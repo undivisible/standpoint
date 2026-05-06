@@ -41,7 +41,7 @@ declare module './$types' {
 // Type declarations for $lib modules
 declare module '$lib/stores' {
 	import type { Writable } from 'svelte/store';
-	import type { User } from 'firebase/auth';
+	import type { User } from '$lib/firebase';
 	export const currentUser: Writable<User | null>;
 	export const userGroup: Writable<string | null>;
 	export interface ImageResult {

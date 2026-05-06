@@ -11,6 +11,10 @@ binding = "DB"
 database_name = "standpoint-db"
 database_id = "fd850c4d-228e-4b0e-b0d1-d8591ed634d6"
 
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "standpoint-uploads"
+
 [[durable_objects.bindings]]
 name = "ROOMS"
 class_name = "RoomDO"

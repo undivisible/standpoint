@@ -2,8 +2,7 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { get } from 'svelte/store';
 import { currentUser } from './stores';
-import { db } from './firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { apiPatch } from './cloudflare-api';
 
 export interface Theme {
 	id: string;
@@ -524,20 +523,21 @@ export function setThemeAccent(themeId: string, primaryRgb: string, secondaryRgb
 	try {
 		const user = get(currentUser);
 		if (user && user.uid) {
-			// merge into preferences.themeAccents on user document
-			const userDocRef = doc(db, 'users', user.uid);
-			const payload: any = {};
-			payload[`preferences.themeAccents.${themeId}`] = {
-				primary: primaryRgb,
-				secondary: secondaryRgb || theme.colors.secondary
-			};
-			// use setDoc with merge to avoid overwriting other prefs
-			setDoc(userDocRef, payload, { merge: true }).catch((err) => {
-				console.warn('Failed to persist theme accent to Firestore', err);
+			apiPatch(`users/${encodeURIComponent(user.uid)}`, {
+				preferences: {
+					themeAccents: {
+						[themeId]: {
+							primary: primaryRgb,
+							secondary: secondaryRgb || theme.colors.secondary
+						}
+					}
+				}
+			}).catch((err) => {
+				console.warn('Failed to persist theme accent to server', err);
 			});
 		}
 	} catch (e) {
-		console.warn('Failed to persist theme accent to Firestore', e);
+		console.warn('Failed to persist theme accent to server', e);
 	}
 
 	// If this theme is currently active, re-apply it so the new accent takes effect

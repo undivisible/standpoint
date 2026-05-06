@@ -1,6 +1,4 @@
 import type { ImageResult } from './stores';
-import { storage } from './firebase';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 interface CachedResult {
 	images: ImageResult[];
@@ -52,65 +50,36 @@ export async function saveResultToStorage(query: string, images: ImageResult[]):
 	}
 }
 
-// Firebase Storage functions for file uploads
+async function uploadFile(
+	endpoint: string,
+	file: File,
+	onProgress?: (progress: number) => void
+): Promise<string> {
+	const form = new FormData();
+	form.set('file', file);
+	if (onProgress) onProgress(5);
+	const response = await fetch(endpoint, { method: 'POST', body: form });
+	if (!response.ok) throw new Error(await response.text());
+	if (onProgress) onProgress(100);
+	const data = await response.json();
+	return data.url;
+}
+
 export async function uploadProfileImage(
 	file: File,
 	userId: string,
 	type: 'avatar' | 'banner' = 'avatar',
 	onProgress?: (progress: number) => void
 ): Promise<string> {
-	try {
-		const fileExtension = file.name.split('.').pop();
-		const fileName = `${type}_${userId}_${Date.now()}.${fileExtension}`;
-		const storageRef = ref(storage, `profile-images/${fileName}`);
-
-		if (onProgress) {
-			// Import uploadBytesResumable for progress tracking
-			const { uploadBytesResumable } = await import('firebase/storage');
-			const uploadTask = uploadBytesResumable(storageRef, file);
-
-			return new Promise((resolve, reject) => {
-				uploadTask.on(
-					'state_changed',
-					(snapshot) => {
-						const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-						onProgress(progress);
-					},
-					(error) => {
-						console.error(`Error uploading ${type} image:`, error);
-						reject(new Error('Failed to upload image'));
-					},
-					async () => {
-						try {
-							const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-							resolve(downloadURL);
-						} catch (error) {
-							reject(error);
-						}
-					}
-				);
-			});
-		} else {
-			const snapshot = await uploadBytes(storageRef, file);
-			const downloadURL = await getDownloadURL(snapshot.ref);
-			return downloadURL;
-		}
-	} catch (error) {
-		console.error(`Error uploading ${type} image:`, error);
-		throw new Error('Failed to upload image');
-	}
+	return uploadFile(
+		`/api/uploads/profile?userId=${encodeURIComponent(userId)}&type=${type}`,
+		file,
+		onProgress
+	);
 }
 
 export async function deleteProfileImage(imageUrl: string): Promise<void> {
-	try {
-		const urlParts = imageUrl.split('/');
-		const fileName = urlParts[urlParts.length - 1].split('?')[0];
-		const storageRef = ref(storage, `profile-images/${fileName}`);
-
-		await deleteObject(storageRef);
-	} catch (error) {
-		console.error('Error deleting profile image:', error);
-	}
+	await fetch(imageUrl, { method: 'DELETE' }).catch(() => {});
 }
 
 export async function uploadTierlistImage(
@@ -119,43 +88,9 @@ export async function uploadTierlistImage(
 	type: 'banner' | 'item' = 'item',
 	onProgress?: (progress: number) => void
 ): Promise<string> {
-	try {
-		const fileExtension = file.name.split('.').pop();
-		const fileName = `${type}_${tierlistId}_${Date.now()}.${fileExtension}`;
-		const storageRef = ref(storage, `tierlist-images/${fileName}`);
-
-		if (onProgress) {
-			const { uploadBytesResumable } = await import('firebase/storage');
-			const uploadTask = uploadBytesResumable(storageRef, file);
-
-			return new Promise((resolve, reject) => {
-				uploadTask.on(
-					'state_changed',
-					(snapshot) => {
-						const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-						onProgress(progress);
-					},
-					(error) => {
-						console.error(`Error uploading ${type} image:`, error);
-						reject(new Error('Failed to upload image'));
-					},
-					async () => {
-						try {
-							const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-							resolve(downloadURL);
-						} catch (error) {
-							reject(error);
-						}
-					}
-				);
-			});
-		} else {
-			const snapshot = await uploadBytes(storageRef, file);
-			const downloadURL = await getDownloadURL(snapshot.ref);
-			return downloadURL;
-		}
-	} catch (error) {
-		console.error(`Error uploading ${type} image:`, error);
-		throw new Error('Failed to upload image');
-	}
+	return uploadFile(
+		`/api/uploads/tierlists?tierlistId=${encodeURIComponent(tierlistId)}&type=${type}`,
+		file,
+		onProgress
+	);
 }

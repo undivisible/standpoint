@@ -2,7 +2,7 @@ import { getUserDrafts, type TierlistData } from '../../lib/firestore-polls-tier
 import { redirect } from '@sveltejs/kit';
 import { get } from 'svelte/store';
 import { currentUser } from '../../lib/stores';
-import type { User } from 'firebase/auth';
+import type { User } from '../../lib/firebase';
 
 export async function load() {
 	const user: User | null = get(currentUser);

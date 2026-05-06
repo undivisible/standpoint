@@ -1,16 +1,3 @@
-import { db } from './firebase';
-import {
-	collection,
-	query,
-	orderBy,
-	limit,
-	onSnapshot,
-	updateDoc,
-	doc,
-	getDocs,
-	type QuerySnapshot,
-	type DocumentChange
-} from 'firebase/firestore';
 import { notifications } from './notifications';
 import type { Notification } from './notifications';
 
@@ -19,43 +6,34 @@ import type { Notification } from './notifications';
  * Syncs Firebase notifications with local notification store
  */
 export function subscribeToUserNotifications(userId: string) {
-	try {
-		const notificationsRef = collection(db, 'users', userId, 'notifications');
-		const q = query(notificationsRef, orderBy('timestamp', 'desc'), limit(50));
-
-		const unsubscribe = onSnapshot(
-			q,
-			(snapshot: QuerySnapshot) => {
-				snapshot.docChanges().forEach((change: DocumentChange) => {
-					const data = change.doc.data();
-					const notification: Omit<Notification, 'id' | 'timestamp' | 'read'> = {
-						type: data.type as 'like' | 'comment' | 'fork' | 'mention',
-						title: formatNotificationTitle(data),
-						message: formatNotificationMessage(data),
-						link: getNotificationLink(data)
-					};
-
-					if (change.type === 'added') {
-						// Add new notification
-						notifications.add(notification);
-					} else if (change.type === 'modified') {
-						// Update read status if changed
-						if (data.read) {
-							notifications.markRead(change.doc.id);
-						}
-					}
-				});
-			},
-			(error: Error) => {
-				console.error('Error subscribing to notifications:', error);
+	let stopped = false;
+	async function load() {
+		if (stopped) return;
+		try {
+			const response = await fetch(
+				`/api/cloudflare/notifications?userId=${encodeURIComponent(userId)}`
+			);
+			if (!response.ok) return;
+			const data = (await response.json()) as { items?: any[] };
+			for (const item of data.items || []) {
+				const notification: Omit<Notification, 'id' | 'timestamp' | 'read'> = {
+					type: item.type as 'like' | 'comment' | 'fork' | 'mention',
+					title: formatNotificationTitle(item),
+					message: formatNotificationMessage(item),
+					link: getNotificationLink(item)
+				};
+				notifications.add(notification);
 			}
-		);
-
-		return unsubscribe;
-	} catch (error) {
-		console.error('Error setting up notification subscription:', error);
-		return () => {};
+		} catch (error) {
+			console.error('Error subscribing to notifications:', error);
+		}
 	}
+	load();
+	const interval = setInterval(load, 30000);
+	return () => {
+		stopped = true;
+		clearInterval(interval);
+	};
 }
 
 /**
@@ -80,8 +58,8 @@ function formatNotificationTitle(data: any): string {
  * Format notification message based on type and data
  */
 function formatNotificationMessage(data: any): string {
-	const contentType = data.contentType || 'content';
-	const contentTitle = data.contentTitle || 'Untitled';
+	const contentType = data.contentType || data.content_type || 'content';
+	const contentTitle = data.contentTitle || data.content_title || 'Untitled';
 
 	switch (data.type) {
 		case 'like':
@@ -101,8 +79,8 @@ function formatNotificationMessage(data: any): string {
  * Generate link URL for notification
  */
 function getNotificationLink(data: any): string {
-	const contentType = data.contentType || 'poll';
-	const contentId = data.contentId;
+	const contentType = data.contentType || data.content_type || 'poll';
+	const contentId = data.contentId || data.content_id;
 
 	if (!contentId) return '/';
 
@@ -123,9 +101,10 @@ function getNotificationLink(data: any): string {
  */
 export async function markNotificationRead(userId: string, notificationId: string) {
 	try {
-		const notificationRef = doc(db, 'users', userId, 'notifications', notificationId);
-		await updateDoc(notificationRef, {
-			read: true
+		await fetch(`/api/cloudflare/notifications/${encodeURIComponent(notificationId)}`, {
+			method: 'PATCH',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ userId, read: true })
 		});
 	} catch (error) {
 		console.error('Error marking notification as read:', error);
@@ -137,13 +116,20 @@ export async function markNotificationRead(userId: string, notificationId: strin
  */
 export async function markAllNotificationsRead(userId: string) {
 	try {
-		const notificationsRef = collection(db, 'users', userId, 'notifications');
-		const q = query(notificationsRef);
-		const snapshot = await getDocs(q);
-
-		const updates = snapshot.docs.map((docSnap) => updateDoc(docSnap.ref, { read: true }));
-
-		await Promise.all(updates);
+		const response = await fetch(
+			`/api/cloudflare/notifications?userId=${encodeURIComponent(userId)}`
+		);
+		if (!response.ok) return;
+		const data = (await response.json()) as { items?: any[] };
+		await Promise.all(
+			(data.items || []).map((item) =>
+				fetch(`/api/cloudflare/notifications/${encodeURIComponent(item.id)}`, {
+					method: 'PATCH',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ read: true })
+				})
+			)
+		);
 	} catch (error) {
 		console.error('Error marking all notifications as read:', error);
 	}
