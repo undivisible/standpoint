@@ -9,6 +9,18 @@ type GoogleProfile = {
 	picture?: string;
 };
 
+function safeRedirectTo(value: string | undefined) {
+	if (
+		!value ||
+		!value.startsWith('/') ||
+		value.startsWith('//') ||
+		Array.from(value).some((char) => char.charCodeAt(0) < 32)
+	) {
+		return '/';
+	}
+	return value;
+}
+
 export const GET: RequestHandler = async ({ url, platform, cookies }) => {
 	const env = platform?.env;
 	const db = env?.DB;
@@ -108,5 +120,5 @@ export const GET: RequestHandler = async ({ url, platform, cookies }) => {
 		maxAge: 30 * 24 * 60 * 60
 	});
 
-	throw redirect(302, savedState.redirect_to || '/');
+	throw redirect(302, safeRedirectTo(savedState.redirect_to));
 };

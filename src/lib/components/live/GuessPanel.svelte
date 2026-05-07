@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onDestroy } from 'svelte';
 	import type { PublicRoomState } from '$lib/live/types';
 	import SpectrumBars from './SpectrumBars.svelte';
 
@@ -12,6 +12,8 @@
 	}>();
 
 	let guessValue = room.guessValue ?? 50;
+	let queuedGuess: number | null = null;
+	let guessTimer: ReturnType<typeof setTimeout> | null = null;
 
 	$: isPsychic = room.psychicId === currentPlayerId;
 	$: isHost =
@@ -22,8 +24,30 @@
 
 	function guess(next: CustomEvent<number>) {
 		guessValue = next.detail;
+		queuedGuess = guessValue;
+		if (guessTimer) return;
+		flushQueuedGuess();
+		guessTimer = setTimeout(() => {
+			guessTimer = null;
+			flushQueuedGuess();
+		}, 150);
+	}
+
+	function flushQueuedGuess() {
+		if (queuedGuess === null) return;
+		guessValue = queuedGuess;
+		queuedGuess = null;
 		dispatch('guess', guessValue);
 	}
+
+	function lock() {
+		flushQueuedGuess();
+		dispatch('lock');
+	}
+
+	onDestroy(() => {
+		if (guessTimer) clearTimeout(guessTimer);
+	});
 </script>
 
 <SpectrumBars
@@ -35,13 +59,14 @@
 	{locked}
 	disabled={isPsychic}
 	on:guessChange={guess}
+	on:guessLock={lock}
 />
 
 <div
-	class="fixed inset-x-4 bottom-20 z-[70] mx-auto max-w-2xl rounded-md border border-neutral-800 bg-neutral-950/90 p-5 text-center shadow-2xl backdrop-blur"
+	class="fixed inset-x-4 bottom-20 z-[70] mx-auto max-w-2xl rounded-md border border-[var(--border)] bg-[var(--surface)] p-5 text-center shadow-2xl backdrop-blur"
 >
 	<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">Clue</p>
-	<h1 class="mt-2 text-3xl font-black text-white">{room.clue}</h1>
+	<h1 class="mt-2 text-3xl font-black text-[var(--text)]">{room.clue}</h1>
 	<p class="mt-2 text-[var(--text-secondary)]">
 		{#if isPsychic}
 			Watch the room place its guess.
@@ -54,7 +79,7 @@
 			type="button"
 			class="mt-5 rounded-md bg-[rgb(var(--primary))] px-6 py-3 font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
 			disabled={room.guessValue === null}
-			onclick={() => dispatch('lock')}
+			onclick={lock}
 		>
 			Lock In Guess
 		</button>

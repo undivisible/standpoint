@@ -892,35 +892,7 @@
 				if (!res.ok) throw new Error('Gemini API error: ' + res.status);
 				data = await res.json();
 			} catch (err) {
-				try {
-					const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
-					if (!apiKey) throw new Error('No Gemini API key available in frontend env');
-					const geminiRes = await fetch(
-						'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' +
-							apiKey,
-						{
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								contents: [{ role: 'user', parts: [{ text: prompt }] }]
-							})
-						}
-					);
-					if (!geminiRes.ok) throw new Error('Gemini direct API error: ' + geminiRes.status);
-					const geminiData = await geminiRes.json();
-					let text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-					try {
-						let cleaned = text.trim();
-						if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
-						if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
-						if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
-						data = JSON.parse(cleaned.trim());
-					} catch (e) {
-						data = { error: 'Gemini fallback: Invalid JSON in response', raw: text };
-					}
-				} catch (fallbackErr) {
-					data = { error: 'Gemini fallback failed: ' + fallbackErr };
-				}
+				data = { error: 'Gemini API error: ' + err };
 			}
 			lastGeminiRawResponse = data.raw ?? data.raw_response ?? data.error ?? JSON.stringify(data);
 			if (data.items) {

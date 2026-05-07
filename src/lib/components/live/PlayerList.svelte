@@ -8,16 +8,16 @@
 <div class="space-y-2">
 	{#each players as player (player.id)}
 		<div
-			class="flex items-center justify-between rounded-md border border-neutral-800 bg-neutral-900/80 px-4 py-3"
+			class="flex items-center justify-between rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
 		>
 			<div class="flex items-center gap-3">
 				<div
-					class="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-700 bg-[var(--surface)] text-sm font-bold text-[rgb(var(--primary))]"
+					class="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg)] text-sm font-bold text-[rgb(var(--primary))]"
 				>
 					{player.displayName.slice(0, 1).toUpperCase()}
 				</div>
 				<div>
-					<div class="font-medium text-white">{player.displayName}</div>
+					<div class="font-medium text-[var(--text)]">{player.displayName}</div>
 					<div class="text-xs text-[var(--text-secondary)]">
 						{player.connected ? 'connected' : 'disconnected'}
 						{#if player.isHost}

@@ -25,9 +25,11 @@
 />
 
 <div class="fixed inset-x-4 bottom-10 z-[70] mx-auto grid max-w-5xl gap-4 md:grid-cols-[1fr_360px]">
-	<div class="rounded-md border border-neutral-800 bg-neutral-950/90 p-6 shadow-2xl backdrop-blur">
+	<div
+		class="rounded-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl backdrop-blur"
+	>
 		<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">Reveal</p>
-		<h1 class="mt-2 text-4xl font-black text-white">{roundPoints} points</h1>
+		<h1 class="mt-2 text-4xl font-black text-[var(--text)]">{roundPoints} points</h1>
 		<p class="mt-2 text-[var(--text-secondary)]">
 			Target {room.targetValue ?? 0}, guess {room.lockedGuess ?? room.guessValue ?? 0}, distance {Math.round(
 				room.lastDistance ?? 0

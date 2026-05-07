@@ -2,12 +2,24 @@ import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { randomId } from '$lib/server/cloudflare-data';
 
+function safeRedirectTo(value: string | null) {
+	if (
+		!value ||
+		!value.startsWith('/') ||
+		value.startsWith('//') ||
+		Array.from(value).some((char) => char.charCodeAt(0) < 32)
+	) {
+		return '/';
+	}
+	return value;
+}
+
 export const GET: RequestHandler = async ({ url, platform, cookies }) => {
 	const env = platform?.env;
 	if (!env?.GOOGLE_CLIENT_ID) throw redirect(302, '/login?error=google-auth-not-configured');
 
 	const state = randomId('state');
-	const redirectTo = url.searchParams.get('redirectTo') || '/';
+	const redirectTo = safeRedirectTo(url.searchParams.get('redirectTo'));
 	const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
 	if (env.DB) {

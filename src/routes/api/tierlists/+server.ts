@@ -21,11 +21,12 @@ export const POST: RequestHandler = async ({ request, platform, cookies }) => {
 	const db = platform?.env?.DB;
 	if (!db) throw error(503, 'Cloudflare D1 is required.');
 	const user = await getSessionUser(db, cookies);
+	if (!user) throw error(401, 'Sign in required');
 	const body = await request.json().catch(() => ({}));
 	const id = randomId('tierlist');
-	const owner = clean(body.owner, user?.uid || 'anonymous', 160);
+	const owner = user.uid;
 	const title = clean(body.title, 'Untitled tierlist', 180);
-	const isGuest = owner === 'anonymous' || !owner.startsWith('user_');
+	const isGuest = false;
 	await db
 		.prepare(
 			'INSERT INTO tierlists (id, title, description, owner, status, visibility, list_type, tiers_json, items_json, placements_json, banner_image, is_forked, original_id, is_guest, data, created_at, updated_at, last_edited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'

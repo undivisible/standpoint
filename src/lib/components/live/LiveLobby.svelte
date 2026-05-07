@@ -21,9 +21,9 @@
 <section
 	class="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl gap-6 px-4 py-10 md:grid-cols-[1fr_360px]"
 >
-	<div class="rounded-md border border-neutral-800 bg-neutral-900/80 p-8">
+	<div class="rounded-md border border-[var(--border)] bg-[var(--surface)] p-8">
 		<p class="text-sm tracking-[0.28em] text-[rgb(var(--primary))] uppercase">Spectrum</p>
-		<h1 class="mt-4 font-sans text-5xl font-black text-white md:text-7xl">Lobby</h1>
+		<h1 class="mt-4 font-sans text-5xl font-black text-[var(--text)] md:text-7xl">Lobby</h1>
 		<p class="mt-4 max-w-2xl text-lg text-[var(--text-secondary)]">
 			Invite at least one other player. One psychic sees the target, gives a clue, and everyone else
 			drags the room guess across the spectrum.
@@ -39,7 +39,7 @@
 			</button>
 			<button
 				type="button"
-				class="rounded-md border border-neutral-700 px-5 py-3 font-semibold text-white transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
+				class="rounded-md border border-[var(--border)] px-5 py-3 font-semibold text-[var(--text)] transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
 				onclick={() => dispatch('leave')}
 			>
 				Leave

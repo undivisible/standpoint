@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { CreateRoomResponse, PublicRoomListResponse, RoomVisibility } from '$lib/live/types';
+import { getSessionUser } from '$lib/server/cloudflare-data';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -64,13 +65,15 @@ export const GET: RequestHandler = async ({ platform }) => {
 	return json(response);
 };
 
-export const POST: RequestHandler = async ({ request, platform }) => {
+export const POST: RequestHandler = async ({ request, platform, cookies }) => {
 	const db = platform?.env?.DB;
 	if (!db) throw error(503, 'Spectrum rooms require Cloudflare D1.');
+	const user = await getSessionUser(db, cookies);
+	if (!user) throw error(401, 'Sign in required');
 
 	const body = await request.json().catch(() => ({}));
 	const roomId = randomId('room');
-	const hostUserId = clean(body.userId, `host_${roomId}`, 120);
+	const hostUserId = user.uid;
 	const hostName = clean(body.playerName, 'Host', 40);
 	const visibility = cleanVisibility(body.visibility);
 	let code = roomCode();

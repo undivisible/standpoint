@@ -79,6 +79,7 @@ export class RoomDO {
 	private room: RoomState | null = null;
 	private wsSet = new Set<WebSocket>();
 	private playerSockets = new Map<WebSocket, string>();
+	private socketUserIds = new Map<WebSocket, string>();
 	private clueLimits = new Map<string, RateBucket>();
 	private guessLimits = new Map<string, RateBucket>();
 	private scoringTimer: ReturnType<typeof setTimeout> | null = null;
@@ -96,7 +97,7 @@ export class RoomDO {
 		if (url.pathname.endsWith('/ws')) {
 			const pair = new WebSocketPair();
 			const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
-			this.handleWebSocket(server);
+			this.handleWebSocket(server, request.headers.get('x-spectrum-user-id') ?? undefined);
 			return new Response(null, { status: 101, webSocket: client });
 		}
 
@@ -138,6 +139,22 @@ export class RoomDO {
 		)
 			.bind(room.id)
 			.all<{ player_id: string; points: number }>();
+		const round = await this.env.DB.prepare(
+			'SELECT rounds.id, rounds.round_number, rounds.psychic_id, rounds.spectrum_card_id, rounds.target_value, rounds.clue, rounds.guess_value, rounds.status, cards.left_label, cards.right_label FROM standpoint_rounds rounds LEFT JOIN standpoint_spectrum_cards cards ON cards.id = rounds.spectrum_card_id WHERE rounds.room_id = ? ORDER BY rounds.round_number DESC LIMIT 1'
+		)
+			.bind(room.id)
+			.first<{
+				id: string;
+				round_number: number;
+				psychic_id: string;
+				spectrum_card_id: string;
+				target_value: number;
+				clue?: string | null;
+				guess_value?: number | null;
+				status: string;
+				left_label?: string | null;
+				right_label?: string | null;
+			}>();
 
 		const players = (playersResult.results ?? []).map((player) => ({
 			id: player.id,
@@ -147,6 +164,18 @@ export class RoomDO {
 			connected: false,
 			isHost: player.user_id === room.host_user_id
 		}));
+		const activePhase =
+			room.status === 'psychic_clue' ||
+			room.status === 'guessing' ||
+			room.status === 'reveal' ||
+			room.status === 'scoring';
+		const restoredPhase = activePhase && !round ? 'lobby' : room.status;
+		const psychicIndex = round
+			? Math.max(
+					0,
+					players.findIndex((player) => player.id === round.psychic_id)
+				)
+			: 0;
 
 		this.room = {
 			id: room.id,
@@ -154,26 +183,44 @@ export class RoomDO {
 			hostUserId: room.host_user_id,
 			hostPlayerId: players.find((player) => player.userId === room.host_user_id)?.id,
 			visibility: room.visibility ?? 'private',
-			phase: room.status,
+			phase: restoredPhase,
 			players,
-			psychicHistory: [],
-			psychicIndex: 0,
-			spectrum: null,
-			roundNumber: 0,
-			targetValue: null,
-			clue: null,
-			guessValue: null,
+			psychicHistory: round ? [round.psychic_id] : [],
+			psychicIndex,
+			spectrum: round
+				? {
+						cardId: round.spectrum_card_id,
+						left: round.left_label || 'left',
+						right: round.right_label || 'right'
+					}
+				: null,
+			roundNumber: round?.round_number ?? 0,
+			targetValue: round?.target_value ?? null,
+			clue: round?.clue ?? null,
+			guessValue: round?.guess_value ?? null,
 			lockedGuess: null,
 			scores: new Map((scoresResult.results ?? []).map((score) => [score.player_id, score.points])),
 			lastRoundPoints: [],
-			lastDistance: null,
+			lastDistance:
+				round?.guess_value !== null && round?.guess_value !== undefined
+					? Math.abs(round.target_value - round.guess_value)
+					: null,
+			currentRoundId: round?.id,
 			createdAt: room.created_at,
 			updatedAt: room.updated_at
 		};
+		if (activePhase && !round) await this.persistRoomStatus();
+		if (
+			(restoredPhase === 'reveal' || restoredPhase === 'scoring') &&
+			this.room.guessValue !== null
+		) {
+			this.room.lockedGuess = this.room.guessValue;
+		}
 	}
 
-	private handleWebSocket(ws: WebSocket) {
+	private handleWebSocket(ws: WebSocket, userId?: string) {
 		this.wsSet.add(ws);
+		if (userId) this.socketUserIds.set(ws, userId);
 		ws.accept();
 
 		ws.addEventListener('message', (event) => {
@@ -223,7 +270,10 @@ export class RoomDO {
 	private async joinRoom(ws: WebSocket, playerName: string, userId?: string) {
 		const room = this.requireRoom();
 		const cleanName = sanitize(playerName, 'Player', 40);
-		const cleanUserId = userId ? sanitize(userId, '', 120) : undefined;
+		const authenticatedUserId = this.socketUserIds.get(ws);
+		const claimedUserId = userId ? sanitize(userId, '', 120) : undefined;
+		const cleanUserId =
+			authenticatedUserId ?? (claimedUserId?.startsWith('user_') ? undefined : claimedUserId);
 		const existingSocket = this.playerSockets.get(ws);
 		if (existingSocket) {
 			const existingPlayer = room.players.find((candidate) => candidate.id === existingSocket);
@@ -393,7 +443,7 @@ export class RoomDO {
 		const psychic = this.currentPsychic();
 		if (room.phase !== 'guessing') throw new Error('Guessing is not open.');
 		if (playerId === psychic?.id) throw new Error('Psychic cannot guess.');
-		if (!this.allow(this.guessLimits, playerId, 20))
+		if (!this.allow(this.guessLimits, playerId, 240))
 			throw new Error('Too many guess updates. Slow down.');
 		if (!Number.isFinite(value) || value < 0 || value > 100)
 			throw new Error('Guess must be between 0 and 100.');
@@ -441,7 +491,10 @@ export class RoomDO {
 		await this.persistRoomStatus();
 		this.broadcast({ type: 'guess_locked', playerId: room.guessPlayerId, value: room.guessValue });
 		this.broadcast({ type: 'reveal_started', targetValue: room.targetValue });
-		this.broadcast({ type: 'score_updated', scores: room.lastRoundPoints });
+		this.broadcast({
+			type: 'score_updated',
+			scores: [...room.scores.entries()].map(([playerId, points]) => ({ playerId, points }))
+		});
 		this.broadcastSnapshots();
 		this.scheduleScoring();
 	}
@@ -474,6 +527,7 @@ export class RoomDO {
 		const playerId = this.playerSockets.get(ws);
 		this.wsSet.delete(ws);
 		this.playerSockets.delete(ws);
+		this.socketUserIds.delete(ws);
 		if (!room || !playerId) return;
 
 		const player = room.players.find((candidate) => candidate.id === playerId);

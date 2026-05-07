@@ -136,6 +136,15 @@
 		await signOutUser();
 		goto('/');
 	}
+
+	async function handleSearchSubmit() {
+		const query = searchQuery.trim();
+		if (!query) {
+			inputEl?.focus();
+			return;
+		}
+		await goto(`/search?q=${encodeURIComponent(query)}`);
+	}
 </script>
 
 <div class="justify center flex h-20 items-start gap-4">
@@ -208,23 +217,26 @@
 		</a>
 	</div>
 
-	<div
+	<form
 		class="search-shell mt-5 flex h-10 items-center gap-2 bg-transparent transition-all duration-500 ease-out"
 		class:overlay-active={searchActive}
+		onsubmit={(event) => {
+			event.preventDefault();
+			void handleSearchSubmit();
+		}}
 	>
 		<button
-			type="button"
-			class="material-symbols-outlined hover:text-accent text-xl text-gray-500 transition-colors select-none focus:outline-none"
-			onclick={() => inputEl?.focus()}
-			aria-label="Focus search input">search</button
+			type="submit"
+			class="material-symbols-outlined hover:text-accent text-xl text-[var(--text-secondary)] transition-colors select-none focus:outline-none"
+			aria-label="Search">search</button
 		>
 		<input
 			bind:this={inputEl}
 			bind:value={searchQuery}
 			placeholder="SEARCH"
-			class="flex-1 bg-transparent text-white placeholder:bg-transparent placeholder:text-white/40 focus:text-white focus:outline-none"
+			class="flex-1 bg-transparent text-[var(--text)] placeholder:bg-transparent placeholder:text-[var(--text-secondary)] focus:outline-none"
 		/>
-	</div>
+	</form>
 
 	<div class="ml-auto flex h-full items-center justify-end gap-4">
 		{#if $currentUser}

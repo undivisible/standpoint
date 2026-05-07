@@ -91,8 +91,8 @@
 	<section
 		class="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-[var(--bg)] px-4 text-center"
 	>
-		<div class="max-w-md rounded-md border border-neutral-800 bg-neutral-900/80 p-6">
-			<h1 class="text-2xl font-bold text-white">Room unavailable</h1>
+		<div class="max-w-md rounded-md border border-[var(--border)] bg-[var(--surface)] p-6">
+			<h1 class="text-2xl font-bold text-[var(--text)]">Room unavailable</h1>
 			<p class="mt-2 text-[var(--text-secondary)]">{error}</p>
 			<a
 				class="mt-5 inline-block rounded-md bg-[rgb(var(--primary))] px-5 py-3 font-semibold text-white"
@@ -102,15 +102,15 @@
 	</section>
 {:else if !joined}
 	<section class="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-[var(--bg)] px-4">
-		<div class="w-full max-w-md rounded-md border border-neutral-800 bg-neutral-900/80 p-6">
+		<div class="w-full max-w-md rounded-md border border-[var(--border)] bg-[var(--surface)] p-6">
 			<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">
 				Join {initialRoom?.code ?? code}
 			</p>
-			<h1 class="mt-2 text-3xl font-black text-white">Enter the room</h1>
+			<h1 class="mt-2 text-3xl font-black text-[var(--text)]">Enter the room</h1>
 			<input
 				bind:value={playerName}
 				maxlength="40"
-				class="mt-5 w-full rounded-md border border-neutral-800 bg-black/30 px-4 py-3 text-white transition outline-none focus:border-[rgb(var(--primary))]"
+				class="mt-5 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-[var(--text)] transition outline-none focus:border-[rgb(var(--primary))]"
 				placeholder="Display name"
 				onkeydown={(event) => {
 					if (event.key === 'Enter') join();
@@ -165,7 +165,7 @@
 	{:else if roomState.phase === 'scoring'}
 		<section class="min-h-[calc(100vh-5rem)] bg-[var(--bg)] px-4 py-10">
 			<div class="mx-auto max-w-3xl">
-				<h1 class="text-4xl font-black text-white">Next round starting</h1>
+				<h1 class="text-4xl font-black text-[var(--text)]">Next round starting</h1>
 				<p class="mt-2 text-[var(--text-secondary)]">Scores are locked. Rotating psychic.</p>
 				<div class="mt-6">
 					<Scoreboard players={roomState.players} scores={roomState.scores} />
@@ -173,7 +173,7 @@
 			</div>
 		</section>
 	{:else}
-		<section class="min-h-[calc(100vh-5rem)] bg-[var(--bg)] px-4 py-10 text-white">
+		<section class="min-h-[calc(100vh-5rem)] bg-[var(--bg)] px-4 py-10 text-[var(--text)]">
 			Game ended.
 		</section>
 	{/if}

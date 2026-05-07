@@ -7,7 +7,9 @@ import {
 	mapUser,
 	randomId,
 	parseData,
-	clean
+	clean,
+	getSessionUser,
+	type AppUser
 } from '$lib/server/cloudflare-data';
 
 function db(platform: App.Platform | undefined) {
@@ -21,6 +23,19 @@ function parts(params: { path?: string }) {
 
 async function body(request: Request) {
 	return cleanUndefinedValues(await request.json());
+}
+
+async function requireUser(
+	database: D1Database,
+	cookies: { get(name: string): string | undefined }
+) {
+	const user = await getSessionUser(database, cookies);
+	if (!user) throw error(401, 'Sign in required');
+	return user;
+}
+
+function assertOwner(user: AppUser, owner: unknown) {
+	if (owner !== user.uid) throw error(403, 'Not allowed');
 }
 
 function limit(url: URL) {
@@ -388,11 +403,12 @@ export const GET: RequestHandler = async ({ params, platform, url }) => {
 	throw error(404, 'Not found');
 };
 
-export const POST: RequestHandler = async ({ params, platform, request }) => {
+export const POST: RequestHandler = async ({ params, platform, request, cookies }) => {
 	const database = db(platform);
 	const path = parts(params);
 	const [resource, id, child] = path;
 	const payload = await body(request);
+	const user = await requireUser(database, cookies);
 
 	if (resource === 'polls' && !id) {
 		const pollId = randomId('poll');
@@ -411,7 +427,7 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 				pollId,
 				clean(payload.title || payload.question, 'Untitled poll', 240),
 				payload.description || null,
-				payload.owner || null,
+				user.uid,
 				payload.status || 'published',
 				payload.visibility || 'public',
 				payload.response_type || payload.responseType || 1,
@@ -434,7 +450,7 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 			)
 			.bind(
 				id,
-				payload.userId,
+				user.uid,
 				payload.position,
 				payload.position_2d ? JSON.stringify(payload.position_2d) : null
 			)
@@ -448,7 +464,7 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 			.prepare(
 				'INSERT OR IGNORE INTO likes (content_type, content_id, user_id, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)'
 			)
-			.bind('poll', id, payload.userId)
+			.bind('poll', id, user.uid)
 			.run();
 		const count = await likeCount(database, 'poll', id);
 		await database
@@ -468,9 +484,9 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 				commentId,
 				'poll',
 				id,
-				payload.userId,
-				payload.userDisplayName || payload.author || null,
-				payload.userPhotoURL || null,
+				user.uid,
+				user.displayName || payload.userDisplayName || payload.author || null,
+				user.photoURL || payload.userPhotoURL || null,
 				clean(payload.text, '', 2000),
 				JSON.stringify(payload)
 			)
@@ -493,7 +509,7 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 				tierlistId,
 				clean(payload.title, 'Untitled tierlist', 240),
 				payload.description || null,
-				payload.owner || null,
+				user.uid,
 				payload.status || 'published',
 				payload.visibility || 'public',
 				payload.list_type || payload.type || 'classic',
@@ -518,7 +534,7 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 			.prepare(
 				'INSERT OR IGNORE INTO likes (content_type, content_id, user_id, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)'
 			)
-			.bind('tierlist', id, payload.userId)
+			.bind('tierlist', id, user.uid)
 			.run();
 		const count = await likeCount(database, 'tierlist', id);
 		await database
@@ -538,9 +554,9 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 				commentId,
 				'tierlist',
 				id,
-				payload.authorUid || payload.userId,
-				payload.author || payload.userDisplayName || null,
-				payload.userPhotoURL || null,
+				user.uid,
+				user.displayName || payload.author || payload.userDisplayName || null,
+				user.photoURL || payload.userPhotoURL || null,
 				clean(payload.text, '', 2000),
 				JSON.stringify(payload)
 			)
@@ -564,7 +580,7 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 			originalId: id,
 			isForked: true,
 			status: payload.status || 'draft',
-			owner: payload.owner || payload.userUid
+			owner: user.uid
 		};
 		await database
 			.prepare(
@@ -598,7 +614,7 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 	}
 
 	if (resource === 'users' && !id) {
-		const uid = payload.uid || randomId('user');
+		const uid = user.uid;
 		await database
 			.prepare(
 				'INSERT INTO users (uid, email, display_name, photo_url, banner_url, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT(uid) DO UPDATE SET email = excluded.email, display_name = excluded.display_name, photo_url = excluded.photo_url, banner_url = excluded.banner_url, data = excluded.data, updated_at = CURRENT_TIMESTAMP'
@@ -616,6 +632,7 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 	}
 
 	if (resource === 'users' && id && child === 'following') {
+		assertOwner(user, id);
 		await database
 			.prepare(
 				'INSERT OR IGNORE INTO follows (follower_id, following_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)'
@@ -633,7 +650,7 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 			)
 			.bind(
 				notificationId,
-				payload.ownerId || payload.userId,
+				user.uid,
 				payload.type,
 				payload.contentType || null,
 				payload.contentId || null,
@@ -650,15 +667,17 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 	throw error(404, 'Not found');
 };
 
-export const PATCH: RequestHandler = async ({ params, platform, request }) => {
+export const PATCH: RequestHandler = async ({ params, platform, request, cookies }) => {
 	const database = db(platform);
 	const path = parts(params);
 	const [resource, id, child] = path;
 	const payload = await body(request);
+	const user = await requireUser(database, cookies);
 
 	if (resource === 'polls' && id && !child) {
 		const current = await getPoll(database, id);
 		if (!current) throw error(404, 'Poll not found');
+		assertOwner(user, current.owner);
 		const merged = { ...current, ...payload };
 		await database
 			.prepare(
@@ -667,7 +686,7 @@ export const PATCH: RequestHandler = async ({ params, platform, request }) => {
 			.bind(
 				clean(merged.title, 'Untitled poll', 240),
 				merged.description || null,
-				merged.owner || null,
+				user.uid,
 				merged.status || 'published',
 				merged.visibility || 'public',
 				merged.response_type || 1,
@@ -682,12 +701,16 @@ export const PATCH: RequestHandler = async ({ params, platform, request }) => {
 	}
 
 	if (resource === 'polls' && id && child === 'stats') {
+		const current = await getPoll(database, id);
+		if (!current) throw error(404, 'Poll not found');
+		assertOwner(user, current.owner);
 		return json({ stats: await updatePollStats(database, id) });
 	}
 
 	if (resource === 'tierlists' && id && !child) {
 		const current = await getTierlist(database, id);
 		if (!current) throw error(404, 'Tierlist not found');
+		assertOwner(user, current.owner);
 		const merged = { ...current, ...payload };
 		await database
 			.prepare(
@@ -696,7 +719,7 @@ export const PATCH: RequestHandler = async ({ params, platform, request }) => {
 			.bind(
 				clean(merged.title, 'Untitled tierlist', 240),
 				merged.description || null,
-				merged.owner || null,
+				user.uid,
 				merged.status || 'published',
 				merged.visibility || 'public',
 				merged.list_type || 'classic',
@@ -712,6 +735,7 @@ export const PATCH: RequestHandler = async ({ params, platform, request }) => {
 	}
 
 	if (resource === 'users' && id && !child) {
+		assertOwner(user, id);
 		const current = await database
 			.prepare('SELECT data FROM users WHERE uid = ?')
 			.bind(id)
@@ -742,6 +766,12 @@ export const PATCH: RequestHandler = async ({ params, platform, request }) => {
 	}
 
 	if (resource === 'notifications' && id) {
+		const row = await database
+			.prepare('SELECT user_id FROM notifications WHERE id = ?')
+			.bind(id)
+			.first<{ user_id: string }>();
+		if (!row) throw error(404, 'Notification not found');
+		assertOwner(user, row.user_id);
 		await database
 			.prepare('UPDATE notifications SET read = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
 			.bind(payload.read ? 1 : 0, id)
@@ -752,21 +782,24 @@ export const PATCH: RequestHandler = async ({ params, platform, request }) => {
 	throw error(404, 'Not found');
 };
 
-export const DELETE: RequestHandler = async ({ params, platform, url }) => {
+export const DELETE: RequestHandler = async ({ params, platform, url, cookies }) => {
 	const database = db(platform);
 	const path = parts(params);
 	const [resource, id, child] = path;
+	const user = await requireUser(database, cookies);
 
 	if (resource === 'polls' && id && !child) {
+		const current = await getPoll(database, id);
+		if (!current) throw error(404, 'Poll not found');
+		assertOwner(user, current.owner);
 		await database.prepare('DELETE FROM polls WHERE id = ?').bind(id).run();
 		return json({ ok: true });
 	}
 
 	if (resource === 'polls' && id && child === 'likes') {
-		const userId = url.searchParams.get('userId');
 		await database
 			.prepare('DELETE FROM likes WHERE content_type = ? AND content_id = ? AND user_id = ?')
-			.bind('poll', id, userId)
+			.bind('poll', id, user.uid)
 			.run();
 		const count = await likeCount(database, 'poll', id);
 		await database
@@ -777,15 +810,17 @@ export const DELETE: RequestHandler = async ({ params, platform, url }) => {
 	}
 
 	if (resource === 'tierlists' && id && !child) {
+		const current = await getTierlist(database, id);
+		if (!current) throw error(404, 'Tierlist not found');
+		assertOwner(user, current.owner);
 		await database.prepare('DELETE FROM tierlists WHERE id = ?').bind(id).run();
 		return json({ ok: true });
 	}
 
 	if (resource === 'tierlists' && id && child === 'likes') {
-		const userId = url.searchParams.get('userId');
 		await database
 			.prepare('DELETE FROM likes WHERE content_type = ? AND content_id = ? AND user_id = ?')
-			.bind('tierlist', id, userId)
+			.bind('tierlist', id, user.uid)
 			.run();
 		const count = await likeCount(database, 'tierlist', id);
 		await database
@@ -796,12 +831,19 @@ export const DELETE: RequestHandler = async ({ params, platform, url }) => {
 	}
 
 	if (resource === 'comments' && id) {
+		const row = await database
+			.prepare('SELECT user_id FROM comments WHERE id = ?')
+			.bind(id)
+			.first<{ user_id: string }>();
+		if (!row) throw error(404, 'Comment not found');
+		assertOwner(user, row.user_id);
 		await database.prepare('DELETE FROM comments WHERE id = ?').bind(id).run();
 		return json({ ok: true });
 	}
 
 	if (resource === 'users' && id && child === 'following') {
 		const target = url.searchParams.get('target');
+		assertOwner(user, id);
 		await database
 			.prepare('DELETE FROM follows WHERE follower_id = ? AND following_id = ?')
 			.bind(id, target)

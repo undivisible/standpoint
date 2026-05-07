@@ -124,7 +124,7 @@
 	<div class="absolute inset-x-0 bottom-0 z-20 flex h-full items-end justify-between px-[1vw]">
 		{#each bars as index (index)}
 			<div
-				class="bar w-[1.55vw] rounded-t-sm bg-gradient-to-t from-neutral-700 via-[rgba(var(--primary),0.58)] to-[rgb(var(--primary))] shadow-[0_0_24px_rgba(var(--primary),0.12)] transition-all duration-300"
+				class="bar w-[1.55vw] rounded-t-sm bg-gradient-to-t from-[var(--border)] via-[rgba(var(--primary),0.58)] to-[rgb(var(--primary))] shadow-[0_0_24px_rgba(var(--primary),0.12)] transition-all duration-300"
 				class:target-glow={targetIndex !== null &&
 					Math.abs(index - targetIndex) <= 2 &&
 					(mode === 'psychic' || mode === 'reveal')}
