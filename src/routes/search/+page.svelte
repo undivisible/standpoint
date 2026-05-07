@@ -1,19 +1,16 @@
 <script lang="ts">
-	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 	import type { TierlistData, PollData } from '$lib/firestore-re-export';
 
 	export let data: {
 		query: string;
+		type: string;
 		tierlists: TierlistData[];
 		polls: PollData[];
 		users: any[];
 	};
 
-	let searchQuery = data.query || '';
-	let searchType = 'all';
-	let isSearching = false;
+	let searchType = data.type || 'all';
 
 	$: filteredResults = {
 		tierlists: searchType === 'all' || searchType === 'tierlists' ? data.tierlists : [],
@@ -24,27 +21,15 @@
 	$: totalResults =
 		filteredResults.tierlists.length + filteredResults.polls.length + filteredResults.users.length;
 
-	async function handleSearch() {
-		if (!searchQuery.trim()) return;
-
-		isSearching = true;
-		await goto(`/search?q=${encodeURIComponent(searchQuery.trim())}&type=${searchType}`);
-		isSearching = false;
+	async function setSearchType(type: string) {
+		searchType = type;
+		const params = [
+			data.query ? `q=${encodeURIComponent(data.query)}` : '',
+			type !== 'all' ? `type=${encodeURIComponent(type)}` : ''
+		].filter(Boolean);
+		const search = params.join('&');
+		await goto(search ? `/search?${search}` : '/search', { keepFocus: true, noScroll: true });
 	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			handleSearch();
-		}
-	}
-
-	onMount(() => {
-		// Focus search input on mount
-		const searchInput = document.getElementById('search-input');
-		if (searchInput && !data.query) {
-			searchInput.focus();
-		}
-	});
 </script>
 
 <svelte:head>
@@ -58,48 +43,14 @@
 		style="background: rgba(var(--surface-rgb), 0.9);"
 	>
 		<div class="container mx-auto px-6 py-4">
-			<div class="flex items-center gap-4">
-				<!-- Search Input -->
-				<div class="relative flex-1">
-					<input
-						id="search-input"
-						type="text"
-						bind:value={searchQuery}
-						on:keydown={handleKeydown}
-						placeholder="Search tierlists, polls, and users..."
-						class="w-full border border-gray-600 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:border-[rgb(var(--primary))] focus:ring-2 focus:ring-[rgb(var(--primary))]/20 focus:outline-none"
-					/>
-					<div class="absolute top-1/2 right-3 -translate-y-1/2 transform">
-						<button
-							on:click={handleSearch}
-							disabled={isSearching || !searchQuery.trim()}
-							class="p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-50"
-						>
-							{#if isSearching}
-								<div
-									class="h-5 w-5 animate-spin border-2 border-[rgb(var(--primary))] border-t-transparent"
-								></div>
-							{:else}
-								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-									/>
-								</svg>
-							{/if}
-						</button>
-					</div>
-				</div>
-
+			<div class="flex items-center justify-end">
 				<!-- Search Type Filter -->
-				<div class="flex bg-gray-800 p-1">
+				<div class="flex bg-[var(--bg)] p-1">
 					<button
 						class="px-4 py-2 text-sm transition-all {searchType === 'all'
 							? 'bg-[rgb(var(--primary))] text-white'
 							: 'text-gray-400 hover:text-white'}"
-						on:click={() => (searchType = 'all')}
+						on:click={() => setSearchType('all')}
 					>
 						All
 					</button>
@@ -107,7 +58,7 @@
 						class="px-4 py-2 text-sm transition-all {searchType === 'tierlists'
 							? 'bg-[rgb(var(--primary))] text-white'
 							: 'text-gray-400 hover:text-white'}"
-						on:click={() => (searchType = 'tierlists')}
+						on:click={() => setSearchType('tierlists')}
 					>
 						Tierlists
 					</button>
@@ -115,7 +66,7 @@
 						class="px-4 py-2 text-sm transition-all {searchType === 'polls'
 							? 'bg-[rgb(var(--primary))] text-white'
 							: 'text-gray-400 hover:text-white'}"
-						on:click={() => (searchType = 'polls')}
+						on:click={() => setSearchType('polls')}
 					>
 						Polls
 					</button>
@@ -123,7 +74,7 @@
 						class="px-4 py-2 text-sm transition-all {searchType === 'users'
 							? 'bg-[rgb(var(--primary))] text-white'
 							: 'text-gray-400 hover:text-white'}"
-						on:click={() => (searchType = 'users')}
+						on:click={() => setSearchType('users')}
 					>
 						Users
 					</button>
@@ -294,8 +245,7 @@
 							<button
 								class="bg-gray-800 px-4 py-2 text-white transition-colors hover:bg-[rgb(var(--primary))]"
 								on:click={() => {
-									searchQuery = tag;
-									handleSearch();
+									goto(`/search?q=${encodeURIComponent(tag)}`);
 								}}
 							>
 								{tag}

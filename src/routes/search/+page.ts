@@ -8,6 +8,7 @@ export const load: PageLoad = async ({ url }) => {
 	if (!query.trim()) {
 		return {
 			query: '',
+			type,
 			tierlists: [],
 			polls: [],
 			users: []
@@ -24,6 +25,7 @@ export const load: PageLoad = async ({ url }) => {
 
 		return {
 			query: query.trim(),
+			type,
 			tierlists: results[0],
 			polls: results[1],
 			users: results[2]
@@ -32,6 +34,7 @@ export const load: PageLoad = async ({ url }) => {
 		console.error('Search error:', error);
 		return {
 			query: query.trim(),
+			type,
 			tierlists: [],
 			polls: [],
 			users: []

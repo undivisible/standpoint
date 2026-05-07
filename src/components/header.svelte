@@ -13,6 +13,8 @@
 	let searchActive = false;
 	let avatarUrl: string | null = null;
 	let inputEl: HTMLInputElement | null = null;
+	let searchTimeout: ReturnType<typeof setTimeout> | undefined;
+	let lastSearchHref = '';
 
 	let isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
 	let mobileOpen = false;
@@ -25,6 +27,14 @@
 	$: googleSignInHref = `/api/auth/google/start?redirectTo=${encodeURIComponent(
 		$page.url.pathname + $page.url.search
 	)}`;
+	$: if ($page.url.pathname === '/search') {
+		const pageQuery = $page.url.searchParams.get('q') || '';
+		if (
+			pageQuery !== searchQuery &&
+			(typeof document === 'undefined' || document.activeElement !== inputEl)
+		)
+			searchQuery = pageQuery;
+	}
 
 	function updateIsMobile() {
 		if (typeof window !== 'undefined') isMobile = window.innerWidth < 768;
@@ -147,10 +157,23 @@
 	async function handleSearchSubmit() {
 		const query = searchQuery.trim();
 		if (!query) {
-			inputEl?.focus();
+			if ($page.url.pathname === '/search') await goto('/search');
+			else inputEl?.focus();
 			return;
 		}
-		await goto(`/search?q=${encodeURIComponent(query)}`);
+		const type = $page.url.searchParams.get('type');
+		const typeParam = type && type !== 'all' ? `&type=${encodeURIComponent(type)}` : '';
+		const href = `/search?q=${encodeURIComponent(query)}${typeParam}`;
+		if (href === lastSearchHref && $page.url.pathname === '/search') return;
+		lastSearchHref = href;
+		await goto(href, { keepFocus: true, noScroll: $page.url.pathname === '/search' });
+	}
+
+	function handleSearchInput() {
+		clearTimeout(searchTimeout);
+		searchTimeout = setTimeout(() => {
+			void handleSearchSubmit();
+		}, 250);
 	}
 </script>
 
@@ -227,6 +250,7 @@
 	<form
 		class="search-shell mt-5 flex h-10 items-center gap-2 bg-transparent transition-all duration-500 ease-out"
 		class:overlay-active={searchActive}
+		style="background-color: transparent;"
 		onsubmit={(event) => {
 			event.preventDefault();
 			void handleSearchSubmit();
@@ -240,8 +264,10 @@
 		<input
 			bind:this={inputEl}
 			bind:value={searchQuery}
+			oninput={handleSearchInput}
 			placeholder="SEARCH"
-			class="flex-1 bg-transparent text-[var(--text)] placeholder:bg-transparent placeholder:text-[var(--text-secondary)] focus:outline-none"
+			class="flex-1 appearance-none bg-transparent text-[var(--text)] shadow-none placeholder:bg-transparent placeholder:text-[var(--text-secondary)] focus:bg-transparent focus:outline-none"
+			style="background-color: transparent; background-image: none;"
 		/>
 	</form>
 
