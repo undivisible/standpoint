@@ -272,25 +272,28 @@
 				</a>
 				<!-- Settings button on hover -->
 				<div
-					class="absolute top-1/2 right-full z-50 mr-3 hidden min-w-40 -translate-y-1/2 rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl group-focus-within:block group-hover:block"
+					class="absolute top-0 right-full z-50 flex h-full origin-right scale-x-95 items-stretch justify-end opacity-0 transition-all duration-300 group-focus-within:scale-x-100 group-focus-within:opacity-100 group-hover:scale-x-100 group-hover:opacity-100"
 				>
 					<a
 						href="/tierlists/drafts"
-						class="block rounded-md px-4 py-2 font-semibold text-[var(--text)] transition hover:bg-[rgb(var(--primary))] hover:text-white"
+						class="flex h-full items-center gap-2 border border-gray-300 bg-gray-100 px-4 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-200"
 					>
+						<span class="material-symbols-outlined text-lg">draft</span>
 						Drafts
 					</a>
 					<a
 						href="/settings"
-						class="block rounded-md px-4 py-2 font-semibold text-[var(--text)] transition hover:bg-[rgb(var(--primary))] hover:text-white"
+						class="flex h-full items-center gap-2 border border-gray-300 bg-white px-4 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
 					>
+						<span class="material-symbols-outlined text-lg">settings</span>
 						Settings
 					</a>
 					<button
 						type="button"
-						class="w-full rounded-md px-4 py-2 text-left font-semibold text-[var(--text)] transition hover:bg-[rgb(var(--primary))] hover:text-white"
+						class="flex h-full items-center gap-2 border border-gray-300 bg-[rgb(var(--primary))] px-4 font-medium text-white shadow-sm transition-colors hover:brightness-110"
 						onclick={handleSignOut}
 					>
+						<span class="material-symbols-outlined text-lg">logout</span>
 						Sign out
 					</button>
 				</div>
