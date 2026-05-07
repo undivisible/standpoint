@@ -27,7 +27,7 @@
 		},
 		{
 			title: 'AI-Powered Suggestions ✨',
-			content: "Stop wasting hours looking for items, we've got AI, AI and AI. (Pro users only)",
+			content: "Stop wasting hours looking for items, we've got AI, AI and AI.",
 			action: 'Amazing!',
 			highlight: 'ai'
 		},

@@ -50,9 +50,9 @@ export function applyTheme(theme: ThemeSettings) {
 	// Apply color scheme CSS variables
 	const colorSchemes = {
 		orange: {
-			'--primary': '255, 107, 53',
-			'--primary-600': '245, 101, 101',
-			'--primary-700': '239, 68, 68'
+			'--primary': '255, 87, 5',
+			'--primary-600': '255, 87, 5',
+			'--primary-700': '220, 66, 0'
 		},
 		red: {
 			'--primary': '239, 68, 68',

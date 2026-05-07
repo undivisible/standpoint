@@ -5,11 +5,11 @@ import { apiPatch } from './cloudflare-api';
 
 export const accentColor = writable<string>('orange');
 
-export const accentCss = writable<string>('255, 107, 53');
+export const accentCss = writable<string>('255, 87, 5');
 
 export async function setAccent(color: string) {
 	accentColor.set(color);
-	let css = '255, 107, 53'; // default leuchtorange #FF6B35)
+	let css = '255, 87, 5'; // default leuchtorange #FF6B35)
 	let cssLight = '255, 180, 120'; // #FFB478
 	if (color === 'blue') {
 		css = '0, 255, 255'; // #00FFFF

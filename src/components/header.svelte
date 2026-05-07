@@ -15,6 +15,7 @@
 	let inputEl: HTMLInputElement | null = null;
 	let searchTimeout: ReturnType<typeof setTimeout> | undefined;
 	let lastSearchHref = '';
+	$: searchType = $page.url.searchParams.get('type') || 'all';
 
 	let isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
 	let mobileOpen = false;
@@ -175,6 +176,16 @@
 			void handleSearchSubmit();
 		}, 250);
 	}
+
+	async function setSearchType(type: string) {
+		const query = $page.url.searchParams.get('q') || searchQuery.trim();
+		const params = [
+			query ? `q=${encodeURIComponent(query)}` : '',
+			type !== 'all' ? `type=${encodeURIComponent(type)}` : ''
+		].filter(Boolean);
+		const search = params.join('&');
+		await goto(search ? `/search?${search}` : '/search', { keepFocus: true, noScroll: true });
+	}
 </script>
 
 <div class="justify center flex h-20 items-start gap-4">
@@ -272,6 +283,46 @@
 	</form>
 
 	<div class="ml-auto flex h-full items-center justify-end gap-4">
+		{#if $page.url.pathname === '/search'}
+			<div class="flex h-10 items-center bg-[var(--bg)]">
+				<button
+					type="button"
+					class="h-full px-3 text-sm transition-all {searchType === 'all'
+						? 'bg-[rgb(var(--primary))] text-white'
+						: 'text-[var(--text-secondary)] hover:text-[var(--text)]'}"
+					onclick={() => setSearchType('all')}
+				>
+					All
+				</button>
+				<button
+					type="button"
+					class="h-full px-3 text-sm transition-all {searchType === 'tierlists'
+						? 'bg-[rgb(var(--primary))] text-white'
+						: 'text-[var(--text-secondary)] hover:text-[var(--text)]'}"
+					onclick={() => setSearchType('tierlists')}
+				>
+					Tierlists
+				</button>
+				<button
+					type="button"
+					class="h-full px-3 text-sm transition-all {searchType === 'polls'
+						? 'bg-[rgb(var(--primary))] text-white'
+						: 'text-[var(--text-secondary)] hover:text-[var(--text)]'}"
+					onclick={() => setSearchType('polls')}
+				>
+					Polls
+				</button>
+				<button
+					type="button"
+					class="h-full px-3 text-sm transition-all {searchType === 'users'
+						? 'bg-[rgb(var(--primary))] text-white'
+						: 'text-[var(--text-secondary)] hover:text-[var(--text)]'}"
+					onclick={() => setSearchType('users')}
+				>
+					Users
+				</button>
+			</div>
+		{/if}
 		{#if $currentUser}
 			<NotificationBell />
 			<div class="group relative flex h-full items-center" role="group">

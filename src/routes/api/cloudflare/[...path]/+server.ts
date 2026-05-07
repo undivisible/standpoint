@@ -298,9 +298,9 @@ export const GET: RequestHandler = async ({ params, platform, url }) => {
 	if (resource === 'users' && id && !child) {
 		const row = await database
 			.prepare(
-				'SELECT users.uid, users.email, users.display_name, users.photo_url, users.banner_url, users.data, preferences.data AS preferences FROM users LEFT JOIN preferences ON preferences.user_id = users.uid WHERE users.uid = ?'
+				"SELECT users.uid, users.email, users.display_name, users.photo_url, users.banner_url, users.data, preferences.data AS preferences FROM users LEFT JOIN preferences ON preferences.user_id = users.uid WHERE users.uid = ? OR json_extract(users.data, '$.customUid') = ? LIMIT 1"
 			)
-			.bind(id)
+			.bind(id, id)
 			.first<Record<string, unknown>>();
 		if (!row) return json(null);
 		return json({ ...parseData(row.data, {}), ...mapUser(row as any) });
@@ -747,6 +747,23 @@ export const PATCH: RequestHandler = async ({ params, platform, request, cookies
 			.bind(id)
 			.first<{ data?: string }>();
 		const data = { ...parseData(current?.data, {}), ...payload };
+		if (data.customUid) {
+			const customUid = clean(String(data.customUid), '', 80);
+			if (!/^[a-zA-Z0-9_-]{3,30}$/.test(customUid)) {
+				throw error(
+					400,
+					'Custom username must be 3-30 characters and contain only letters, numbers, hyphens, and underscores'
+				);
+			}
+			const existing = await database
+				.prepare(
+					"SELECT uid FROM users WHERE uid != ? AND (uid = ? OR json_extract(data, '$.customUid') = ?) LIMIT 1"
+				)
+				.bind(id, customUid, customUid)
+				.first<{ uid: string }>();
+			if (existing) throw error(409, 'Custom username is already taken');
+			data.customUid = customUid;
+		}
 		await database
 			.prepare(
 				'INSERT INTO users (uid, email, display_name, photo_url, banner_url, data, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(uid) DO UPDATE SET email = excluded.email, display_name = excluded.display_name, photo_url = excluded.photo_url, banner_url = excluded.banner_url, data = excluded.data, updated_at = CURRENT_TIMESTAMP'

@@ -76,6 +76,7 @@
 	$: userPolls = data?.userPolls ?? [];
 	$: requestedUid = data?.requestedUid;
 	$: resolvedUid = data?.resolvedUid;
+	$: profileHandle = userProfile?.customUid || resolvedUid;
 
 	// If the requested UID is different from the resolved UID, this is a redirect profile
 	$: isRedirectProfile = requestedUid && resolvedUid && requestedUid !== resolvedUid;
@@ -286,7 +287,7 @@
 							class="theme-transition mb-1 font-mono text-xs"
 							style="color: var(--text-secondary);"
 						>
-							@{resolvedUid}
+							@{profileHandle}
 						</div>
 						<!-- Name -->
 						<div class="mb-2">

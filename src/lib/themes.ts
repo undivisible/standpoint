@@ -30,11 +30,11 @@ export const themes: Theme[] = [
 		name: 'Dark (Default)',
 		description: 'Classic dark theme with purple accents',
 		colors: {
-			primary: '168, 85, 247', // Purple
-			secondary: '236, 72, 153', // Pink
-			background: '#0f0f0f',
-			surface: '#1a1a1a',
-			surfaceHover: '#252525',
+			primary: '255, 87, 5', // Purple
+			secondary: '255, 107, 53', // Pink
+			background: '#000000',
+			surface: '#0f0f0f',
+			surfaceHover: '#1a1a1a',
 			text: '#ffffff',
 			textSecondary: '#a0a0a0',
 			border: '#333333',

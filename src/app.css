@@ -2,19 +2,19 @@
 
 /* accent.ts */
 :root {
-	--primary: 255, 107, 53;
+	--primary: 255, 87, 5;
 	--primary-light: 255, 180, 120;
-	--primary-dark: 255, 87, 34;
+	--primary-dark: 220, 66, 0;
 	--primary-600: 245, 101, 101;
 	--primary-700: 239, 68, 68;
 	--base-font-size: 16px;
 	--primary-soft: var(--primary-soft, 0 0 0);
-	--primary-rgb: 255, 107, 53;
+	--primary-rgb: 255, 87, 5;
 	--primary-light-rgb: 255, 180, 120;
 
 	/* Theme system defaults */
-	--bg: #0f0f0f;
-	--surface: #1a1a1a;
+	--bg: #000000;
+	--surface: #0f0f0f;
 	--text: #ffffff;
 	--text-secondary: #a0a0a0;
 	--border: #333333;

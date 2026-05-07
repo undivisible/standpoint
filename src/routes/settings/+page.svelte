@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { currentUser } from '$lib/stores';
-	import { hasProAccessStore } from '$lib';
+	import { currentUser, refreshSession } from '$lib';
 	import { updateUserProfile, getUserProfile } from '$lib/user-profile';
 	import { accentColor, setAccent } from '$lib/accent';
 	import { createUserProfile } from '$lib';
@@ -15,7 +14,7 @@
 	import { currentTheme, themes, setThemeAccent } from '$lib/themes';
 
 	// Preset accent swatches available per-theme
-	const accentPresets = ['#FF6B35', '#FF356B', '#C0FF05', '#05FFAC', '#00FFFF', '#B400FF'];
+	const accentPresets = ['#FF5705', '#FF356B', '#C0FF05', '#05FFAC', '#00FFFF', '#B400FF'];
 
 	export let data: { userProfile: UserProfile | null };
 
@@ -23,6 +22,15 @@
 	let saving = false;
 	let activeSection = 'profile';
 	let hasInitialized = false;
+	let browserPromptAvailable = false;
+	$: settingsSections = [
+		{ id: 'profile', icon: 'person', label: 'Profile' },
+		{ id: 'notifications', icon: 'notifications', label: 'Notifications' },
+		{ id: 'privacy', icon: 'privacy_tip', label: 'Privacy' },
+		{ id: 'theme', icon: 'palette', label: 'Theme' },
+		...(browserPromptAvailable ? [{ id: 'ai', icon: 'smart_toy', label: 'AI Features' }] : [])
+	];
+	$: if (!browserPromptAvailable && activeSection === 'ai') activeSection = 'profile';
 
 	// Form state variables
 	let profileForm = {
@@ -60,11 +68,11 @@
 	};
 
 	// Local hex values for custom accent pickers
-	let primaryHex = '#ff6b35';
+	let primaryHex = '#ff5705';
 	let secondaryHex = '#ffb478';
 
 	function hexToRgbString(hex: string) {
-		if (!hex) return '255, 107, 53';
+		if (!hex) return '255, 87, 5';
 		const h = hex.replace('#', '');
 		const bigint = parseInt(h, 16);
 		const r = (bigint >> 16) & 255;
@@ -75,7 +83,7 @@
 
 	function rgbStringToHex(rgb: string) {
 		const parts = rgb.split(',').map((p) => Number(p.trim()));
-		if (parts.length < 3) return '#ff6b35';
+		if (parts.length < 3) return '#ff5705';
 		const [r, g, b] = parts;
 		return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 	}
@@ -94,6 +102,21 @@
 	let uploadProgress = 0;
 	let isUploading = false;
 	let uploadType = '';
+	let loadingProfile = false;
+
+	function getPromptApi() {
+		return (globalThis as any).LanguageModel ?? (globalThis as any).ai?.languageModel;
+	}
+
+	async function detectPromptApi() {
+		const promptApi = getPromptApi();
+		if (!promptApi?.availability) {
+			browserPromptAvailable = false;
+			return;
+		}
+		const availability = await promptApi.availability();
+		browserPromptAvailable = availability === 'available' || availability === 'readily';
+	}
 
 	// File upload handlers
 	async function handleAvatarUpload(event: Event) {
@@ -173,7 +196,7 @@
 	// Reactive statement to update form values when userProfile changes (only on initial load)
 	$: if (userProfile && !hasInitialized) {
 		profileForm = {
-			uid: userProfile.uid || '',
+			uid: userProfile.customUid || userProfile.uid || '',
 			displayName: userProfile.displayName || '',
 			bio: userProfile.bio || '',
 			avatarUrl: userProfile.photoURL || '',
@@ -221,32 +244,46 @@
 		hasInitialized = true;
 	}
 
-	// Handle client-side auth check
-	onMount(async () => {
-		if (!$currentUser) {
+	async function ensureProfileLoaded() {
+		if (loadingProfile) return;
+		loadingProfile = true;
+		let user = $currentUser;
+		if (!user) user = await refreshSession();
+		if (!user) {
 			goto('/login?redirectTo=/settings');
+			loadingProfile = false;
 			return;
 		}
 
 		// If we don't have profile data from SSR, load it client-side
 		if (!userProfile) {
 			try {
-				userProfile = await getUserProfile($currentUser.uid);
+				userProfile = await getUserProfile(user.uid);
 
 				if (!userProfile) {
 					await createUserProfile({
-						uid: $currentUser.uid,
-						displayName: $currentUser.displayName || '',
-						email: $currentUser.email || '',
-						photoURL: $currentUser.photoURL || ''
+						uid: user.uid,
+						displayName: user.displayName || '',
+						email: user.email || '',
+						photoURL: user.photoURL || ''
 					});
-					userProfile = await getUserProfile($currentUser.uid);
+					userProfile = await getUserProfile(user.uid);
 				}
 			} catch (error) {
 				console.error('Error loading profile:', error);
 				addToast('Failed to load profile data', 'error');
+			} finally {
+				loadingProfile = false;
 			}
+		} else {
+			loadingProfile = false;
 		}
+	}
+
+	// Handle client-side auth check
+	onMount(async () => {
+		void detectPromptApi();
+		await ensureProfileLoaded();
 	});
 
 	// Save functions
@@ -264,6 +301,7 @@
 				bio: profileForm.bio,
 				photoURL: profileForm.avatarUrl,
 				bannerURL: profileForm.bannerUrl,
+				customUid: profileForm.uid && profileForm.uid !== $currentUser.uid ? profileForm.uid : '',
 				location: profileForm.location,
 				website: profileForm.website,
 				twitter: profileForm.twitter,
@@ -286,6 +324,7 @@
 				bio: profileForm.bio,
 				photoURL: profileForm.avatarUrl,
 				bannerURL: profileForm.bannerUrl,
+				customUid: profileForm.uid && profileForm.uid !== $currentUser.uid ? profileForm.uid : '',
 				location: profileForm.location,
 				website: profileForm.website,
 				twitter: profileForm.twitter,
@@ -391,33 +430,6 @@
 			saving = false;
 		}
 	}
-
-	onMount(async () => {
-		if (!$currentUser) {
-			goto('/login?redirectTo=/settings');
-			return;
-		}
-
-		// If we don't have profile data from SSR, load it client-side
-		if (!userProfile) {
-			try {
-				userProfile = await getUserProfile($currentUser.uid);
-
-				if (!userProfile) {
-					await createUserProfile({
-						uid: $currentUser.uid,
-						displayName: $currentUser.displayName || '',
-						email: $currentUser.email || '',
-						photoURL: $currentUser.photoURL || ''
-					});
-					userProfile = await getUserProfile($currentUser.uid);
-				}
-			} catch (error) {
-				console.error('Error loading profile:', error);
-				addToast('Failed to load profile data', 'error');
-			}
-		}
-	});
 </script>
 
 <svelte:head>
@@ -450,12 +462,11 @@
 						<div
 							class="absolute right-1 left-1 h-10 bg-[rgb(var(--primary))]/80 transition-all duration-400 ease-out"
 							style="top:{(() => {
-								const order = ['profile', 'notifications', 'privacy', 'theme', 'ai'];
-								const idx = order.indexOf(activeSection);
+								const idx = settingsSections.findIndex((item) => item.id === activeSection);
 								return 4 + idx * (40 + 4) + 'px';
 							})()}"
 						></div>
-						{#each [{ id: 'profile', icon: 'person', label: 'Profile' }, { id: 'notifications', icon: 'notifications', label: 'Notifications' }, { id: 'privacy', icon: 'privacy_tip', label: 'Privacy' }, { id: 'theme', icon: 'palette', label: 'Theme' }, { id: 'ai', icon: 'smart_toy', label: 'AI Features' }] as item (item.id)}
+						{#each settingsSections as item (item.id)}
 							<button
 								on:click={() => (activeSection = item.id)}
 								class="relative z-10 flex h-10 w-full items-center px-4 text-left text-sm font-medium tracking-wide transition-colors {activeSection ===
@@ -511,15 +522,7 @@
 
 								<!-- Banner Section -->
 								<div>
-									<div class="mb-4 block text-sm font-medium text-gray-300">
-										Profile Banner
-										<span
-											class="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium text-white"
-											style="background:linear-gradient(90deg,var(--pro-grad-stop-1),var(--pro-grad-stop-2),var(--pro-grad-stop-3));"
-										>
-											✨ PRO
-										</span>
-									</div>
+									<div class="mb-4 block text-sm font-medium text-gray-300">Profile Banner</div>
 									<div class="relative">
 										<div class="mb-2 text-sm text-gray-400">Banner Preview:</div>
 										{#if profileForm.bannerUrl}
@@ -540,38 +543,23 @@
 											</div>
 										{/if}
 										<div class="absolute inset-0 flex items-center justify-center">
-											{#if $hasProAccessStore}
-												<input
-													type="file"
-													bind:this={bannerFileInput}
-													on:change={handleBannerUpload}
-													accept="image/*"
-													class="hidden"
-												/>
-												<button
-													type="button"
-													on:click={() => bannerFileInput?.click()}
-													class="theme-transition px-4 py-2 text-sm transition-colors"
-													style="background-color: rgba(0,0,0,0.5); color: var(--text);"
-												>
-													Change Banner
-												</button>
-											{:else}
-												<button
-													disabled
-													class="theme-transition cursor-not-allowed px-4 py-2 text-sm"
-													style="background-color: rgba(0,0,0,0.5); color: var(--text-secondary);"
-												>
-													Change Banner
-												</button>
-											{/if}
+											<input
+												type="file"
+												bind:this={bannerFileInput}
+												on:change={handleBannerUpload}
+												accept="image/*"
+												class="hidden"
+											/>
+											<button
+												type="button"
+												on:click={() => bannerFileInput?.click()}
+												class="theme-transition px-4 py-2 text-sm transition-colors"
+												style="background-color: rgba(0,0,0,0.5); color: var(--text);"
+											>
+												Change Banner
+											</button>
 										</div>
 									</div>
-									{#if !$hasProAccessStore}
-										<p class="text-accent/70 mt-2 text-xs">
-											🔒 Pro feature: Unlock custom profile banners
-										</p>
-									{/if}
 								</div>
 
 								<div>
@@ -587,32 +575,24 @@
 									/>
 								</div>
 
-								{#if $hasProAccessStore}
-									<div>
-										<label for="uid" class="mb-2 block text-sm font-medium text-gray-300">
-											UID (Custom Username)
-											<span
-												class="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium text-white"
-												style="background:linear-gradient(90deg,var(--pro-grad-stop-1),var(--pro-grad-stop-2),var(--pro-grad-stop-3));"
-											>
-												✨ PRO
-											</span>
-										</label>
-										<input
-											id="uid"
-											type="text"
-											bind:value={profileForm.uid}
-											class="w-full border border-gray-600 bg-gray-700 px-4 py-3 text-white placeholder-gray-400 focus:border-transparent focus:ring-2 focus:ring-[rgb(var(--primary))]"
-											placeholder="Your custom UID"
-											pattern="[a-zA-Z0-9_-]+"
-											title="UID can only contain letters, numbers, hyphens, and underscores"
-										/>
-										<p class="mt-1 text-xs text-gray-400">
-											Your custom UID will be used in your profile URL. Can only contain letters,
-											numbers, hyphens, and underscores.
-										</p>
-									</div>
-								{/if}
+								<div>
+									<label for="uid" class="mb-2 block text-sm font-medium text-gray-300">
+										Custom Username
+									</label>
+									<input
+										id="uid"
+										type="text"
+										bind:value={profileForm.uid}
+										class="w-full border border-gray-600 bg-gray-700 px-4 py-3 text-white placeholder-gray-400 focus:border-transparent focus:ring-2 focus:ring-[rgb(var(--primary))]"
+										placeholder="Your custom UID"
+										pattern="[a-zA-Z0-9_-]+"
+										title="UID can only contain letters, numbers, hyphens, and underscores"
+									/>
+									<p class="mt-1 text-xs text-gray-400">
+										Your custom username will be used in your profile URL. Can only contain letters,
+										numbers, hyphens, and underscores.
+									</p>
+								</div>
 
 								<div>
 									<label for="bio" class="mb-2 block text-sm font-medium text-gray-300">
@@ -1049,74 +1029,56 @@
 					{/if}
 
 					<!-- AI Settings -->
-					{#if activeSection === 'ai'}
+					{#if activeSection === 'ai' && browserPromptAvailable}
 						<div class="border border-gray-700 bg-gray-800/50 p-8 backdrop-blur-sm">
 							<h2 class="mb-6 text-2xl font-bold">AI Features</h2>
 
-							{#if $hasProAccessStore}
-								<div class="space-y-6">
-									<div class="flex items-center justify-between">
-										<div>
-											<h3 class="font-medium text-white">Enable AI Features</h3>
-											<p class="text-sm text-gray-400">Allow AI to enhance your experience</p>
-										</div>
-										<label class="relative inline-flex cursor-pointer items-center">
-											<input type="checkbox" bind:checked={aiForm.enableAI} class="peer sr-only" />
-											<div
-												class="peer h-6 w-11 bg-gray-700 peer-checked:bg-[rgb(var(--primary))] peer-focus:ring-4 peer-focus:ring-[rgb(var(--primary))]/40 after:absolute after:top-0.5 after:left-[2px] after:h-5 after:w-5 after:after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
-											></div>
-										</label>
+							<div class="space-y-6">
+								<div class="flex items-center justify-between">
+									<div>
+										<h3 class="font-medium text-white">Enable AI Features</h3>
+										<p class="text-sm text-gray-400">Allow AI to enhance your experience</p>
 									</div>
-
-									<div class="flex items-center justify-between">
-										<div>
-											<h3 class="font-medium text-white">AI Suggestions</h3>
-											<p class="text-sm text-gray-400">Get intelligent content suggestions</p>
-										</div>
-										<label class="relative inline-flex cursor-pointer items-center">
-											<input
-												type="checkbox"
-												bind:checked={aiForm.aiSuggestions}
-												class="peer sr-only"
-											/>
-											<div
-												class="peer h-6 w-11 bg-gray-700 peer-checked:bg-[rgb(var(--primary))] peer-focus:ring-4 peer-focus:ring-[rgb(var(--primary))]/40 after:absolute after:top-0.5 after:left-[2px] after:h-5 after:w-5 after:after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
-											></div>
-										</label>
-									</div>
-
-									<div class="flex items-center justify-between">
-										<div>
-											<h3 class="font-medium text-white">More AI features on the way</h3>
-											<p class="text-sm text-gray-400">Unless I forget</p>
-										</div>
-									</div>
-
-									<button
-										on:click={saveAI}
-										disabled={saving}
-										class="bg-[rgb(var(--primary))] px-6 py-3 text-white transition-colors hover:brightness-110 disabled:opacity-50"
-									>
-										{saving ? 'Saving...' : 'Save AI Settings'}
-									</button>
+									<label class="relative inline-flex cursor-pointer items-center">
+										<input type="checkbox" bind:checked={aiForm.enableAI} class="peer sr-only" />
+										<div
+											class="peer h-6 w-11 bg-gray-700 peer-checked:bg-[rgb(var(--primary))] peer-focus:ring-4 peer-focus:ring-[rgb(var(--primary))]/40 after:absolute after:top-0.5 after:left-[2px] after:h-5 after:w-5 after:after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
+										></div>
+									</label>
 								</div>
-							{:else}
-								<div class="py-12 text-center">
-									<div class="mb-4">
-										<span class="text-6xl">🤖</span>
+
+								<div class="flex items-center justify-between">
+									<div>
+										<h3 class="font-medium text-white">AI Suggestions</h3>
+										<p class="text-sm text-gray-400">Get intelligent content suggestions</p>
 									</div>
-									<h3 class="mb-2 text-xl font-bold text-white">Pro Feature</h3>
-									<p class="mb-6 text-gray-400">Unlock AI-powered features with Standpoint Pro</p>
-									<a
-										href="/pro"
-										class="inline-flex items-center px-6 py-3 font-medium text-white transition-all"
-										style="background:linear-gradient(90deg,var(--pro-grad-stop-1),var(--pro-grad-stop-2),var(--pro-grad-stop-3));"
-									>
-										<span>✨</span>
-										<span class="ml-2">Upgrade to Pro</span>
-									</a>
+									<label class="relative inline-flex cursor-pointer items-center">
+										<input
+											type="checkbox"
+											bind:checked={aiForm.aiSuggestions}
+											class="peer sr-only"
+										/>
+										<div
+											class="peer h-6 w-11 bg-gray-700 peer-checked:bg-[rgb(var(--primary))] peer-focus:ring-4 peer-focus:ring-[rgb(var(--primary))]/40 after:absolute after:top-0.5 after:left-[2px] after:h-5 after:w-5 after:after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
+										></div>
+									</label>
 								</div>
-							{/if}
+
+								<div class="flex items-center justify-between">
+									<div>
+										<h3 class="font-medium text-white">More AI features on the way</h3>
+										<p class="text-sm text-gray-400">Unless I forget</p>
+									</div>
+								</div>
+
+								<button
+									on:click={saveAI}
+									disabled={saving}
+									class="bg-[rgb(var(--primary))] px-6 py-3 text-white transition-colors hover:brightness-110 disabled:opacity-50"
+								>
+									{saving ? 'Saving...' : 'Save AI Settings'}
+								</button>
+							</div>
 						</div>
 					{/if}
 				</div>

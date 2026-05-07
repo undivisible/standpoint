@@ -10,7 +10,7 @@
 		users: any[];
 	};
 
-	let searchType = data.type || 'all';
+	$: searchType = data.type || 'all';
 
 	$: filteredResults = {
 		tierlists: searchType === 'all' || searchType === 'tierlists' ? data.tierlists : [],
@@ -20,16 +20,6 @@
 
 	$: totalResults =
 		filteredResults.tierlists.length + filteredResults.polls.length + filteredResults.users.length;
-
-	async function setSearchType(type: string) {
-		searchType = type;
-		const params = [
-			data.query ? `q=${encodeURIComponent(data.query)}` : '',
-			type !== 'all' ? `type=${encodeURIComponent(type)}` : ''
-		].filter(Boolean);
-		const search = params.join('&');
-		await goto(search ? `/search?${search}` : '/search', { keepFocus: true, noScroll: true });
-	}
 </script>
 
 <svelte:head>
@@ -37,52 +27,6 @@
 </svelte:head>
 
 <div class="theme-transition min-h-screen" style="background-color: var(--bg); color: var(--text);">
-	<!-- Search Header -->
-	<div
-		class="sticky top-0 z-10 border-b border-gray-700 backdrop-blur-md"
-		style="background: rgba(var(--surface-rgb), 0.9);"
-	>
-		<div class="container mx-auto px-6 py-4">
-			<div class="flex items-center justify-end">
-				<!-- Search Type Filter -->
-				<div class="flex bg-[var(--bg)] p-1">
-					<button
-						class="px-4 py-2 text-sm transition-all {searchType === 'all'
-							? 'bg-[rgb(var(--primary))] text-white'
-							: 'text-gray-400 hover:text-white'}"
-						on:click={() => setSearchType('all')}
-					>
-						All
-					</button>
-					<button
-						class="px-4 py-2 text-sm transition-all {searchType === 'tierlists'
-							? 'bg-[rgb(var(--primary))] text-white'
-							: 'text-gray-400 hover:text-white'}"
-						on:click={() => setSearchType('tierlists')}
-					>
-						Tierlists
-					</button>
-					<button
-						class="px-4 py-2 text-sm transition-all {searchType === 'polls'
-							? 'bg-[rgb(var(--primary))] text-white'
-							: 'text-gray-400 hover:text-white'}"
-						on:click={() => setSearchType('polls')}
-					>
-						Polls
-					</button>
-					<button
-						class="px-4 py-2 text-sm transition-all {searchType === 'users'
-							? 'bg-[rgb(var(--primary))] text-white'
-							: 'text-gray-400 hover:text-white'}"
-						on:click={() => setSearchType('users')}
-					>
-						Users
-					</button>
-				</div>
-			</div>
-		</div>
-	</div>
-
 	<!-- Search Results -->
 	<div class="container mx-auto px-6 py-8">
 		{#if data.query}
@@ -196,7 +140,7 @@
 						</h2>
 						<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 							{#each filteredResults.users as user (user.uid)}
-								<a href="/user/{user.uid}" class="group block">
+								<a href="/user/{user.customUid || user.uid}" class="group block">
 									<div
 										class="border border-white/10 bg-gray-800/50 p-6 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-gray-700/50"
 									>

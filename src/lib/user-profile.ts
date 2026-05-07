@@ -7,6 +7,7 @@ export interface UserProfile {
 	email?: string;
 	photoURL?: string;
 	bannerURL?: string;
+	customUid?: string;
 	bio?: string;
 	location?: string;
 	website?: string;
@@ -115,6 +116,7 @@ export async function updateUserProfile(
 		displayName: string;
 		photoURL: string;
 		bannerURL: string;
+		customUid: string;
 		bio: string;
 		location: string;
 		website: string;
@@ -229,7 +231,7 @@ export async function resolveUid(uid: string): Promise<string> {
 			return (user as any).redirectsTo;
 		}
 
-		return uid;
+		return user?.uid || uid;
 	} catch (error) {
 		console.error('Error resolving UID:', error);
 		return uid;
@@ -306,11 +308,12 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 		}
 
 		return {
-			uid,
+			uid: userData.uid || uid,
 			displayName: userData.displayName || 'Anonymous User',
 			email: userData.email || '',
 			photoURL: userData.photoURL || '',
 			bannerURL: userData.bannerURL || '',
+			customUid: userData.customUid || '',
 			bio: userData.bio || '',
 			location: userData.location || '',
 			website: userData.website || '',
