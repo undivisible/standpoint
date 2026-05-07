@@ -90,6 +90,10 @@ export class LiveWSClient {
 		this.socket.onmessage = (event) => {
 			try {
 				const message = JSON.parse(String(event.data)) as LiveServerMessage;
+				if (message.type === 'room_snapshot' && !message.data) {
+					this.dispatch({ type: 'error', message: 'Received an invalid spectrum room message.' });
+					return;
+				}
 				this.dispatch(message);
 			} catch {
 				this.dispatch({ type: 'error', message: 'Received an invalid spectrum room message.' });

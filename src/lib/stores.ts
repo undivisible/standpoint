@@ -37,7 +37,7 @@ async function loadSession() {
 		const user = await getSessionUser();
 		currentUser.set(user);
 		auth.currentUser = user;
-		userGroup.set(user ? 'user' : null);
+		userGroup.set(user?.userGroup ?? (user ? 'user' : null));
 		const prefs = user?.preferences;
 		if (prefs?.accent) setAccent(String(prefs.accent));
 		// If the user has per-theme accents stored in preferences, copy them

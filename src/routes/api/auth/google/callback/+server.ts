@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { clean, randomId } from '$lib/server/cloudflare-data';
+import { SESSION_COOKIE, sessionCookieSetOptions } from '$lib/server/session-cookie';
 
 type GoogleProfile = {
 	sub: string;
@@ -115,13 +116,7 @@ export const GET: RequestHandler = async ({ url, platform, cookies }) => {
 		)
 		.bind(sessionId, userId, expiresAt)
 		.run();
-	cookies.set('spectrum_session', sessionId, {
-		path: '/',
-		httpOnly: true,
-		sameSite: 'lax',
-		secure: url.protocol === 'https:',
-		maxAge: 30 * 24 * 60 * 60
-	});
+	cookies.set(SESSION_COOKIE, sessionId, sessionCookieSetOptions(url));
 
 	throw redirect(302, safeRedirectTo(savedState.redirect_to));
 };
