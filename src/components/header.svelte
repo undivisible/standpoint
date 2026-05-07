@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { getContext, onMount } from 'svelte';
-	import { currentUser, signInWithGoogle, signOutUser } from '../lib/stores';
+	import { currentUser, signOutUser } from '../lib/stores';
 	import NotificationBell from './notification-bell.svelte';
 	import { getUserProfile } from '../lib/user-profile';
 
@@ -22,6 +22,9 @@
 	let pollsEl: HTMLElement | null = null;
 	let tierlistsEl: HTMLElement | null = null;
 	let spectrumEl: HTMLElement | null = null;
+	$: googleSignInHref = `/api/auth/google/start?redirectTo=${encodeURIComponent(
+		$page.url.pathname + $page.url.search
+	)}`;
 
 	function updateIsMobile() {
 		if (typeof window !== 'undefined') isMobile = window.innerWidth < 768;
@@ -136,9 +139,6 @@
 		navHoverStore?.set(false);
 	}
 
-	async function handleGoogleLogin() {
-		await signInWithGoogle();
-	}
 	async function handleSignOut() {
 		await signOutUser();
 		goto('/');
@@ -302,10 +302,10 @@
 					class="flex h-full items-center gap-2 border border-gray-300 bg-gray-100 px-4 py-2 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-200"
 					>Drafts</a
 				>
-				<button
+				<a
+					href={googleSignInHref}
 					class="flex h-full items-center gap-2 border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
-					onclick={handleGoogleLogin}
-					aria-label="Sign in with Google">Sign in with Google</button
+					aria-label="Sign in with Google">Sign in with Google</a
 				>
 			</div>
 		{/if}

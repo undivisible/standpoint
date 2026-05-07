@@ -20,10 +20,16 @@
 	onMount(() => {
 		client = new LiveWSClient(code);
 		client.on('room_snapshot', (message) => {
-			roomState = message.data;
+			const snapshot = message.data;
+			if (!snapshot?.players) {
+				error = 'Received an invalid spectrum room message.';
+				dispatch('error', error);
+				return;
+			}
+			roomState = snapshot;
 			const me = userId
-				? message.data.players.find((player) => player.userId === userId)
-				: message.data.players.find((player) => player.displayName === playerName);
+				? snapshot.players.find((player) => player.userId === userId)
+				: snapshot.players.find((player) => player.displayName === playerName);
 			currentPlayerId = me?.id ?? currentPlayerId;
 		});
 		client.on('error', (message) => {
