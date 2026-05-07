@@ -11,12 +11,12 @@
 	let error = '';
 
 	$: isPsychic = room.psychicId === currentPlayerId;
-	$: canSubmit = isPsychic && clue.trim().length > 0 && !/^\d+(\.\d+)?$/.test(clue.trim());
+	$: canSubmit = isPsychic && clue.trim().length > 0 && !/\d|%|percent/i.test(clue.trim());
 
 	function submit() {
 		error = '';
 		if (!canSubmit) {
-			error = 'Clue required, and it cannot be only a number.';
+			error = 'Clue required, and it cannot include numbers.';
 			return;
 		}
 		dispatch('submit', clue.trim());

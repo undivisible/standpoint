@@ -19,10 +19,9 @@ export const POST: RequestHandler = async ({ request, platform, cookies }) => {
 	const db = platform?.env?.DB;
 	if (!db) throw error(503, 'Cloudflare D1 is required.');
 	const user = await getSessionUser(db, cookies);
-	if (!user) throw error(401, 'Sign in required');
 	const body = await request.json().catch(() => ({}));
 	const id = randomId('poll');
-	const owner = user.uid;
+	const owner = user?.uid ?? null;
 	const title = clean(body.title || body.question, 'Untitled poll', 180);
 	const options = body.options || body.customOptions || [];
 	const stats = body.stats || { average: 0, std_dev: 0, total_votes: 0, vote_positions: [] };

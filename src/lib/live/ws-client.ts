@@ -64,6 +64,10 @@ export class LiveWSClient {
 		this.send({ type: 'lock_guess' });
 	}
 
+	submitLeftRight(direction: 'left' | 'right') {
+		this.send({ type: 'submit_left_right', direction });
+	}
+
 	nextRound() {
 		this.send({ type: 'next_round' });
 	}

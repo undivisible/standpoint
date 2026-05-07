@@ -122,6 +122,7 @@ export const POST: RequestHandler = async ({ request, platform, cookies }) => {
 					displayName: hostName,
 					joinOrder: 0,
 					connected: true,
+					team: 0,
 					isHost: true
 				}
 			]

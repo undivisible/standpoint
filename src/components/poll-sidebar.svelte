@@ -493,9 +493,6 @@
 	let consensusThreshold = 0.2;
 	let variabilityThreshold = 0.3;
 	let engagementThreshold = 10;
-
-	// Determine if user can create polls (pro users only)
-	$: canCreatePolls = $userGroup === 'pro' || $userGroup === 'dev';
 </script>
 
 <div

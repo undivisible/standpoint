@@ -4,6 +4,7 @@ export type LiveClientMessage =
 	| { type: 'submit_clue'; clue: string }
 	| { type: 'update_guess'; value: number }
 	| { type: 'lock_guess' }
+	| { type: 'submit_left_right'; direction: 'left' | 'right' }
 	| { type: 'next_round' }
 	| { type: 'leave_room' };
 
@@ -28,6 +29,7 @@ export type Phase =
 	| 'starting'
 	| 'psychic_clue'
 	| 'guessing'
+	| 'left_right'
 	| 'reveal'
 	| 'scoring'
 	| 'ended';
@@ -40,6 +42,7 @@ export type Player = {
 	displayName: string;
 	joinOrder: number;
 	connected: boolean;
+	team?: 0 | 1;
 	psychicIndex?: number;
 	isHost?: boolean;
 };
@@ -73,6 +76,8 @@ export type PublicRoomState = {
 	clue: string | null;
 	guessValue: number | null;
 	guessPlayerId?: string;
+	leftRightGuess: 'left' | 'right' | null;
+	leftRightTeam: 0 | 1 | null;
 	lockedGuess: number | null;
 	scores: ScoreEntry[];
 	lastRoundPoints: ScoreEntry[];

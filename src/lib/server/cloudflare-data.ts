@@ -5,6 +5,8 @@ export type AppUser = {
 	displayName?: string | null;
 	photoURL?: string | null;
 	bannerURL?: string | null;
+	userGroup?: string | null;
+	isAdmin?: boolean;
 	preferences?: Record<string, unknown>;
 };
 
@@ -14,6 +16,7 @@ type UserRow = {
 	display_name?: string | null;
 	photo_url?: string | null;
 	banner_url?: string | null;
+	user_group?: string | null;
 	preferences?: string | null;
 	data?: string | null;
 };
@@ -60,6 +63,8 @@ export function mapUser(row: UserRow): AppUser {
 		displayName: row.display_name ?? (data.displayName as string | undefined) ?? null,
 		photoURL: row.photo_url ?? (data.photoURL as string | undefined) ?? null,
 		bannerURL: row.banner_url ?? (data.bannerURL as string | undefined) ?? null,
+		userGroup: row.user_group ?? null,
+		isAdmin: row.user_group === 'admin',
 		preferences: jsonParse(row.preferences, {})
 	};
 }
@@ -72,7 +77,7 @@ export async function getSessionUser(
 	if (!sessionId) return null;
 	const row = await db
 		.prepare(
-			"SELECT users.uid, users.email, users.display_name, users.photo_url, users.banner_url, users.data, preferences.data AS preferences FROM sessions JOIN users ON users.uid = sessions.user_id LEFT JOIN preferences ON preferences.user_id = users.uid WHERE sessions.id = ? AND sessions.expires_at > datetime('now')"
+			"SELECT users.uid, users.email, users.display_name, users.photo_url, users.banner_url, users.user_group, users.data, preferences.data AS preferences FROM sessions JOIN users ON users.uid = sessions.user_id LEFT JOIN preferences ON preferences.user_id = users.uid WHERE sessions.id = ? AND sessions.expires_at > datetime('now')"
 		)
 		.bind(sessionId)
 		.first<UserRow>();

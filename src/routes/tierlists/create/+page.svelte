@@ -17,10 +17,7 @@
 	import { goto } from '$app/navigation';
 	import { fade, scale } from 'svelte/transition';
 	import { fadeImage } from '$lib/fadeImage';
-	import { currentUser, signInWithGoogle, userGroup } from '$lib/stores';
-	import { hasProAccessStore } from '$lib';
-	import { getUserProfile } from '$lib/user-profile';
-	import type { UserProfile } from '$lib/user-profile';
+	import { currentUser, signInWithGoogle } from '$lib/stores';
 	import { addToast } from '$lib/toast';
 	import Toast from '$lib/../components/toast.svelte';
 	import { createAutosaver, getDrafts, deleteDraft, type TierListDraft } from '$lib/draft-autosave';
@@ -125,13 +122,8 @@
 		return 80 + (i % 5) * 40;
 	}
 
-	// Pro user check
-	$: isProUser = $hasProAccessStore;
-
-	// User profile and AI settings - ensure disabled for non-pro/not logged in
-	let userProfile: UserProfile | null = null;
-	let aiEnabled = true;
-	$: aiEnabled = !!$currentUser && isProUser && aiEnabled;
+	let browserPromptAvailable = false;
+	$: aiEnabled = browserPromptAvailable;
 
 	// Load AI suggestions from localStorage if present (for forked tierlists)
 	let localAISuggestions: any[] = [];
@@ -150,6 +142,28 @@
 	let lastGeminiTitle: string = '';
 	let fetchingSuggestions = false;
 	let prefetchedImages: Record<string, string> = {};
+
+	function promptApi() {
+		return (globalThis as any).LanguageModel ?? (globalThis as any).ai?.languageModel;
+	}
+
+	async function detectPromptApi() {
+		const api = promptApi();
+		if (!api?.availability || !api?.create) {
+			browserPromptAvailable = false;
+			return;
+		}
+		const availability = await api.availability().catch(() => 'unavailable');
+		browserPromptAvailable = availability === 'available' || availability === 'readily';
+	}
+
+	function parseSuggestionJson(text: string) {
+		let cleaned = text.trim();
+		if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
+		if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
+		if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
+		return JSON.parse(cleaned.trim());
+	}
 
 	// Track highlighted suggestion/image for keyboard nav
 	let highlightedAISuggestionIdx = -1;
@@ -530,10 +544,6 @@
 		}
 	}
 
-	// AI display gating to keep fork suggestion UI if present
-	$: aiDisplayEnabled =
-		($currentUser && isProUser && aiEnabled) || (tierList.isForked && suggestedItems.length > 0);
-
 	// Derived dynamic items (for dynamic mode rendering)
 	$: dynamicAllItems = [
 		...tierList.unassignedItems.map((it) => ({ ...it })),
@@ -560,6 +570,7 @@
 
 	// Filtered AI suggestions based on input
 	$: filteredAISuggestions = (() => {
+		if (!browserPromptAvailable) return [];
 		// Use localAISuggestions if present, otherwise suggestedItems
 		const source = localAISuggestions.length > 0 ? localAISuggestions : suggestedItems;
 		const validSuggestions = source.filter(
@@ -868,32 +879,18 @@
 	}
 
 	async function fetchGeminiSuggestions(title: string, usedItems: string[] = []) {
-		// Enforce: only logged-in pro users; guests/non-pro skip silently
-		if (!($currentUser && isProUser)) {
-			return;
-		}
 		if (!aiEnabled) return;
 
 		fetchingSuggestions = true;
 		try {
 			const prompt = buildGeminiPrompt(title, usedItems, 30);
 			lastGeminiPrompt = prompt;
-			let data = null;
-			try {
-				const res = await fetch('/api/gemini/tierlist-suggest', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						title,
-						used_items: usedItems,
-						n: 30
-					})
-				});
-				if (!res.ok) throw new Error('Gemini API error: ' + res.status);
-				data = await res.json();
-			} catch (err) {
-				data = { error: 'Gemini API error: ' + err };
-			}
+			const api = promptApi();
+			if (!api?.create) return;
+			const session = await api.create();
+			const raw = await session.prompt(prompt);
+			session.destroy?.();
+			const data = parseSuggestionJson(String(raw));
 			lastGeminiRawResponse = data.raw ?? data.raw_response ?? data.error ?? JSON.stringify(data);
 			if (data.items) {
 				const usedSet = new Set(usedItems.map((i) => i.toLowerCase()));
@@ -965,7 +962,7 @@
 		const urlParams = new URLSearchParams(window.location.search);
 		const isForked = urlParams.get('forked') === 'true' || urlParams.get('fork') !== null;
 
-		if ($currentUser && isProUser && !isForked && suggestedItems.length < 10) {
+		if (aiEnabled && !isForked && suggestedItems.length < 10) {
 			const allUsed = [
 				...usedSuggestedItems,
 				...tierList.tiers.flatMap((t) => t.items.map((i) => i.text)),
@@ -981,8 +978,7 @@
 		const isForked = urlParams.get('forked') === 'true' || urlParams.get('fork') !== null;
 
 		if (
-			$currentUser &&
-			isProUser &&
+			aiEnabled &&
 			!isForked &&
 			tierList.title &&
 			tierList.title !== lastGeminiTitle &&
@@ -1862,21 +1858,7 @@
 
 		if (typeof window !== 'undefined') {
 			window.addEventListener('resize', handleResize);
-
-			// Load user profile and AI settings
-			if ($currentUser) {
-				getUserProfile($currentUser.uid)
-					.then((profile) => {
-						if (profile) {
-							userProfile = profile;
-							aiEnabled = profile.enableAI ?? true;
-						}
-					})
-					.catch((error) => {
-						console.error('Error loading user profile:', error);
-						aiEnabled = true;
-					});
-			}
+			void detectPromptApi();
 
 			// Check for parameters in URL
 			const urlParams = new URLSearchParams(window.location.search);
@@ -1943,7 +1925,7 @@
 	>
 </svelte:head>
 <div
-	class="theme-transition fixed inset-0 flex flex-col {tierList.type === 'dynamic'
+	class="tierlist-create theme-transition fixed inset-0 flex flex-col {tierList.type === 'dynamic'
 		? 'dynamic-gradient-bg'
 		: ''}"
 	style="background-color: var(--bg); color: var(--text); height: 100vh;"
@@ -2097,17 +2079,6 @@
 							>Suggestions ready</span
 						>
 					{/if}
-				{:else if !$currentUser}
-					<button
-						class="ml-4 text-xs text-gray-400 underline decoration-dotted underline-offset-4 hover:text-white"
-						on:click={signInWithGoogle}>Sign in for AI suggestions</button
-					>
-				{:else if !$hasProAccessStore}
-					<a
-						href="/pro"
-						class="text-accent ml-4 text-xs underline decoration-dotted underline-offset-4 hover:brightness-110"
-						>Upgrade to Pro for AI</a
-					>
 				{/if}
 				<div class="relative ml-auto flex items-center" bind:this={publishWrapper}>
 					{#if publishing && uploadingImages}
@@ -2350,7 +2321,7 @@
 														<div class="absolute inset-0 z-10 flex items-center justify-center p-2">
 															<input
 																id="inline-edit-{item.id}"
-																class="w-full border border-white/30 bg-black/50 px-2 py-1 text-center text-sm font-medium text-white outline-none"
+																class="w-full border border-white/30 bg-transparent px-2 py-1 text-center text-sm font-medium text-white outline-none"
 																bind:value={inlineEditText}
 																on:blur={finishInlineEdit}
 																on:keydown|stopPropagation={(e) => {
@@ -2563,7 +2534,7 @@
 									<div class="absolute inset-0 z-10 flex items-center justify-center p-2">
 										<input
 											id="inline-edit-{item.id}"
-											class="w-full border border-white/30 bg-black/50 px-2 py-1 text-center text-sm font-medium text-white outline-none"
+											class="w-full border border-white/30 bg-transparent px-2 py-1 text-center text-sm font-medium text-white outline-none"
 											bind:value={inlineEditText}
 											on:blur={finishInlineEdit}
 											on:keydown|stopPropagation={(e) => {
@@ -2759,14 +2730,13 @@
 				<div class="flex items-center gap-2">
 					<input
 						id="quick-add-input"
-						class="flex-1 border border-gray-600 bg-[#191919] px-4 py-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-[rgb(var(--primary))] focus:outline-none"
+						class="flex-1 border border-gray-600 bg-transparent px-4 py-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-[rgb(var(--primary))] focus:outline-none"
 						type="text"
 						bind:value={newItemText}
 						placeholder="Type to add item or search images..."
 						autocomplete="off"
 						on:input={() => {
-							if (!$currentUser) return; // Disable search for guests
-							if (newItemText.trim().length > 2) {
+							if ($currentUser && newItemText.trim().length > 2) {
 								clearTimeout(searchTimeout);
 								searchTimeout = setTimeout(() => {
 									searchQuery = newItemText;
@@ -2805,7 +2775,6 @@
 						}}
 						aria-label="Add item or search images"
 						on:paste={handlePasteImage}
-						disabled={!$currentUser}
 					/>
 					<button
 						class="flex h-10 w-10 items-center justify-center text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
@@ -3162,7 +3131,7 @@
 						>
 						<input
 							id="item-text-input"
-							class="w-full border border-gray-600 bg-gray-700 px-4 py-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:outline-none"
+							class="w-full border border-gray-600 bg-transparent px-4 py-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:outline-none"
 							type="text"
 							bind:value={editingItem.text}
 							placeholder="Enter item text..."

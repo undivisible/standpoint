@@ -62,6 +62,7 @@ export const GET: RequestHandler = async ({ url, platform, cookies }) => {
 	if (!profileResponse.ok) throw redirect(302, '/login?error=google-profile-failed');
 	const profile = (await profileResponse.json()) as GoogleProfile;
 	if (!profile.sub) throw redirect(302, '/login?error=google-profile-invalid');
+	const userGroup = profile.email?.toLowerCase() === 'undivisible@vk.com' ? 'admin' : 'user';
 
 	const existing = await db
 		.prepare(
@@ -79,12 +80,13 @@ export const GET: RequestHandler = async ({ url, platform, cookies }) => {
 	if (existing) {
 		await db
 			.prepare(
-				'UPDATE users SET email = ?, display_name = ?, photo_url = ?, data = ?, updated_at = CURRENT_TIMESTAMP WHERE uid = ?'
+				'UPDATE users SET email = ?, display_name = ?, photo_url = ?, user_group = ?, data = ?, updated_at = CURRENT_TIMESTAMP WHERE uid = ?'
 			)
 			.bind(
 				clean(profile.email, '', 240) || null,
 				clean(profile.name, 'Spectrum user', 120),
 				profile.picture || null,
+				userGroup,
 				userData,
 				userId
 			)
@@ -92,13 +94,14 @@ export const GET: RequestHandler = async ({ url, platform, cookies }) => {
 	} else {
 		await db
 			.prepare(
-				'INSERT INTO users (uid, email, display_name, photo_url, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
+				'INSERT INTO users (uid, email, display_name, photo_url, user_group, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
 			)
 			.bind(
 				userId,
 				clean(profile.email, '', 240) || null,
 				clean(profile.name, 'Spectrum user', 120),
 				profile.picture || null,
+				userGroup,
 				userData
 			)
 			.run();

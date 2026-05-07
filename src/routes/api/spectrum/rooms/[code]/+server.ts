@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { PublicRoomState, RoomVisibility } from '$lib/live/types';
+import { getSessionUser } from '$lib/server/cloudflare-data';
 
 function clean(value: unknown, fallback: string, max = 80) {
 	return String(value || fallback)
@@ -57,31 +58,21 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 		displayName: player.display_name,
 		joinOrder: player.join_order,
 		connected: Boolean(player.connected),
+		team: (player.join_order % 2) as 0 | 1,
 		isHost: player.user_id === room.host_user_id
 	}));
 	const hostPlayerId = players.find((player) => player.userId === room.host_user_id)?.id;
-	const stableHost = players.find(
-		(player) => player.id === hostPlayerId || player.userId === room.host_user_id
-	);
-	const controllingHostId =
-		!stableHost || stableHost.connected
-			? stableHost?.id
-			: players.find((player) => player.connected)?.id;
-
 	return {
 		id: room.id,
 		code: room.code,
-		hostUserId: room.host_user_id,
+		hostUserId: '',
 		hostPlayerId,
 		visibility: room.visibility ?? 'private',
 		phase: room.status,
 		status: room.status,
 		players: players.map((player) => ({
 			...player,
-			isHost:
-				player.id === hostPlayerId ||
-				player.userId === room.host_user_id ||
-				player.id === controllingHostId
+			isHost: player.id === hostPlayerId || player.userId === room.host_user_id
 		})),
 		psychicHistory: [],
 		psychicIndex: 0,
@@ -91,6 +82,8 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 		targetValue: null,
 		clue: null,
 		guessValue: null,
+		leftRightGuess: null,
+		leftRightTeam: null,
 		lockedGuess: null,
 		scores: (scoresResult.results ?? []).map((score) => ({
 			playerId: score.player_id,
@@ -109,9 +102,10 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 	return json(await roomSnapshot(db, params.code));
 };
 
-export const POST: RequestHandler = async ({ request, params, platform }) => {
+export const POST: RequestHandler = async ({ request, params, platform, cookies }) => {
 	const db = platform?.env?.DB;
 	if (!db) throw error(503, 'Spectrum rooms require Cloudflare D1.');
+	const user = await getSessionUser(db, cookies);
 
 	const body = await request.json().catch(() => ({}));
 	const room = await db
@@ -122,7 +116,16 @@ export const POST: RequestHandler = async ({ request, params, platform }) => {
 	if (!room) throw error(404, 'Room not found.');
 
 	const playerName = clean(body.playerName, 'Player', 40);
-	const userId = body.userId ? clean(body.userId, '', 120) : undefined;
+	const claimedUserId = body.userId ? clean(body.userId, '', 120) : undefined;
+	const matchingClaimedPlayer = claimedUserId
+		? await db
+				.prepare('SELECT id FROM standpoint_room_players WHERE room_id = ? AND user_id = ?')
+				.bind(room.id, claimedUserId)
+				.first<{ id: string }>()
+		: null;
+	const userId =
+		user?.uid ??
+		(matchingClaimedPlayer || claimedUserId?.startsWith('user_') ? undefined : claimedUserId);
 	const existing = userId
 		? await db
 				.prepare('SELECT id FROM standpoint_room_players WHERE room_id = ? AND user_id = ?')

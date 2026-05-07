@@ -408,9 +408,13 @@ export const POST: RequestHandler = async ({ params, platform, request, cookies 
 	const path = parts(params);
 	const [resource, id, child] = path;
 	const payload = await body(request);
-	const user = await requireUser(database, cookies);
+	let user: AppUser | null = null;
+	if (!(resource === 'polls' && !id)) {
+		user = await requireUser(database, cookies);
+	}
 
 	if (resource === 'polls' && !id) {
+		user = await getSessionUser(database, cookies);
 		const pollId = randomId('poll');
 		const stats = payload.stats || {
 			average: 0,
@@ -427,7 +431,7 @@ export const POST: RequestHandler = async ({ params, platform, request, cookies 
 				pollId,
 				clean(payload.title || payload.question, 'Untitled poll', 240),
 				payload.description || null,
-				user.uid,
+				user?.uid ?? null,
 				payload.status || 'published',
 				payload.visibility || 'public',
 				payload.response_type || payload.responseType || 1,
@@ -442,6 +446,8 @@ export const POST: RequestHandler = async ({ params, platform, request, cookies 
 			.run();
 		return json({ id: pollId }, { status: 201 });
 	}
+
+	if (!user) throw error(401, 'Sign in required');
 
 	if (resource === 'polls' && id && child === 'votes') {
 		await database

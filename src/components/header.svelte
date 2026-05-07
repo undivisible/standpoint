@@ -71,10 +71,17 @@
 	}
 
 	function openMobileNav(e: MouseEvent) {
-		if (!isMobile || mobileOpen) return;
+		if (!isMobile) return;
 		e.preventDefault();
-		mobileOpen = true;
-		updateLinks();
+		if (mobileOpen) {
+			const href = (e.currentTarget as HTMLAnchorElement).getAttribute('href');
+			mobileOpen = false;
+			activeIndex = -1;
+			if (href) goto(href);
+		} else {
+			mobileOpen = true;
+			updateLinks();
+		}
 	}
 
 	function startMobileNav(e: TouchEvent) {
@@ -265,7 +272,7 @@
 				</a>
 				<!-- Settings button on hover -->
 				<div
-					class="absolute top-full right-0 z-50 hidden min-w-40 rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl group-focus-within:block group-hover:block"
+					class="absolute top-1/2 right-full z-50 mr-3 hidden min-w-40 -translate-y-1/2 rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl group-focus-within:block group-hover:block"
 				>
 					<a
 						href="/tierlists/drafts"

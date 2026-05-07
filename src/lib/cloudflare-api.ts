@@ -5,6 +5,8 @@ export type AppUser = {
 	displayName?: string | null;
 	photoURL?: string | null;
 	bannerURL?: string | null;
+	userGroup?: string | null;
+	isAdmin?: boolean;
 	preferences?: Record<string, any>;
 };
 

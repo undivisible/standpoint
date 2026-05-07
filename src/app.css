@@ -128,6 +128,12 @@ html {
 		'opsz' 24;
 }
 
+.search-shell input,
+.spectrum-lobby input,
+.tierlist-create input {
+	background-color: transparent !important;
+}
+
 /* Theme-aware classes */
 .theme-bg {
 	background-color: var(--bg);

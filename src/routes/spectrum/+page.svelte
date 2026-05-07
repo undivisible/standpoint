@@ -20,9 +20,6 @@
 		'#B5E5FF'
 	];
 
-	$: defaultName = $currentUser?.displayName || $currentUser?.email?.split('@')[0] || '';
-	$: if (!playerName && defaultName) playerName = defaultName;
-
 	function cleanCode(value: string) {
 		return value
 			.replace(/[^a-z0-9]/gi, '')
@@ -96,10 +93,10 @@
 	<title>Spectrum - Standpoint</title>
 </svelte:head>
 
-<section class="min-h-[calc(100vh-5rem)] bg-[var(--bg)] text-[var(--text)]">
+<section class="spectrum-lobby min-h-[calc(100vh-5rem)] bg-[var(--bg)] text-[var(--text)]">
 	<div class="grid w-full lg:grid-cols-[1.15fr_0.85fr]">
 		<div
-			class="flex min-h-[48vh] flex-col justify-center border-r border-b border-[var(--border)] bg-[var(--surface)] p-8 md:p-10 lg:min-h-[60vh]"
+			class="flex min-h-[42vh] flex-col justify-center border-r border-b border-[var(--border)] bg-[var(--surface)] p-8 md:p-10 lg:min-h-[60vh]"
 		>
 			<h1 class="font-sans text-6xl font-black tracking-tight text-[var(--text)] md:text-8xl">
 				Spectrum
@@ -110,7 +107,7 @@
 			</p>
 		</div>
 
-		<div class="grid lg:min-h-[60vh] lg:grid-rows-3">
+		<div class="grid lg:min-h-[60vh] lg:grid-rows-[1fr_1fr_1.2fr]">
 			<div class="relative border-b border-[var(--border)] bg-[var(--surface)]">
 				<label
 					class="absolute top-5 left-6 z-10 text-xs tracking-[0.22em] text-[var(--text-secondary)] uppercase"
@@ -120,7 +117,7 @@
 					id="playerName"
 					bind:value={playerName}
 					maxlength="40"
-					class="h-full min-h-36 w-full bg-[var(--surface)] px-6 pt-12 pb-6 text-3xl font-black text-[var(--text)] transition outline-none focus:bg-[var(--bg)] md:text-4xl"
+					class="h-full min-h-36 w-full bg-transparent px-6 pt-12 pb-6 text-3xl font-black text-[var(--text)] transition outline-none md:text-4xl"
 					placeholder="Mia"
 				/>
 			</div>
@@ -165,7 +162,7 @@
 						bind:value={roomCode}
 						oninput={() => (roomCode = cleanCode(roomCode))}
 						maxlength="6"
-						class="h-full w-full bg-[var(--surface)] px-6 pt-12 pb-6 text-4xl font-black tracking-[0.16em] text-[var(--text)] uppercase transition outline-none focus:bg-[var(--bg)]"
+						class="h-full w-full bg-transparent px-6 pt-12 pb-6 text-4xl font-black tracking-[0.16em] text-[var(--text)] uppercase transition outline-none"
 						placeholder="ABC123"
 					/>
 				</div>

@@ -7,6 +7,7 @@
 	import LiveLobby from '$lib/components/live/LiveLobby.svelte';
 	import PsychicPanel from '$lib/components/live/PsychicPanel.svelte';
 	import GuessPanel from '$lib/components/live/GuessPanel.svelte';
+	import LeftRightPanel from '$lib/components/live/LeftRightPanel.svelte';
 	import RoundReveal from '$lib/components/live/RoundReveal.svelte';
 	import Scoreboard from '$lib/components/live/Scoreboard.svelte';
 	import type { PublicRoomState } from '$lib/live/types';
@@ -22,8 +23,6 @@
 	let liveUserId = '';
 
 	$: code = ($page.params.code ?? '').toUpperCase();
-	$: defaultName = $currentUser?.displayName || $currentUser?.email?.split('@')[0] || '';
-	$: if (!playerName && defaultName) playerName = defaultName;
 
 	async function loadRoom() {
 		loading = true;
@@ -33,7 +32,7 @@
 			if (!response.ok) throw new Error(await response.text());
 			initialRoom = await response.json();
 			const saved = localStorage.getItem('standpointLiveName');
-			if (!playerName) playerName = saved || defaultName || 'Player';
+			if (!playerName) playerName = saved || '';
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Room not found.';
 		} finally {
@@ -101,7 +100,9 @@
 		</div>
 	</section>
 {:else if !joined}
-	<section class="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-[var(--bg)] px-4">
+	<section
+		class="spectrum-lobby flex min-h-[calc(100vh-5rem)] items-center justify-center bg-[var(--bg)] px-4"
+	>
 		<div class="w-full max-w-md rounded-md border border-[var(--border)] bg-[var(--surface)] p-6">
 			<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">
 				Join {initialRoom?.code ?? code}
@@ -159,6 +160,12 @@
 			{currentPlayerId}
 			on:guess={(event) => client?.updateGuess(event.detail)}
 			on:lock={() => client?.lockGuess()}
+		/>
+	{:else if roomState.phase === 'left_right'}
+		<LeftRightPanel
+			room={roomState}
+			{currentPlayerId}
+			on:guess={(event) => client?.submitLeftRight(event.detail)}
 		/>
 	{:else if roomState.phase === 'reveal'}
 		<RoundReveal room={roomState} {currentPlayerId} on:next={() => client?.nextRound()} />

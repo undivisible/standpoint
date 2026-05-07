@@ -9,7 +9,7 @@
 	import LoadingIndicator from '$lib/../components/loading-indicator.svelte';
 	import PollForm from '$lib/../components/poll-form.svelte';
 	import { linear } from 'svelte/easing';
-	import { currentUser, userGroup } from '$lib/stores';
+	import { currentUser } from '$lib/stores';
 	import { addToast } from '$lib/toast';
 
 	let polls: any[] = [];
@@ -92,7 +92,6 @@
 		} catch {}
 	}
 	let showCreateModal = false;
-	let showProUpgradeModal = false;
 	let creating = false;
 	let createError = '';
 	let voteMessage = '';
@@ -229,14 +228,8 @@
 	}
 
 	function openCreateModal() {
-		// Only allow Pro users to create polls
-		if ($userGroup === 'pro' || $userGroup === 'dev') {
-			showCreateModal = true;
-			resetPollForm();
-		} else {
-			addToast('Polls creation is a Pro feature. Upgrade to Pro to create polls!', 'warning');
-			window.location.href = '/pro';
-		}
+		showCreateModal = true;
+		resetPollForm();
 	}
 
 	function resetPollForm() {
@@ -424,9 +417,8 @@
 				},
 				created_at: new Date().toISOString()
 			};
-			let newPollId;
+			let newPollId = await savePollToFirestore(pollData);
 			if ($currentUser) {
-				newPollId = await savePollToFirestore(pollData);
 				// Sync any local polls to Firebase
 				const localPolls = localStorage.getItem(LOCAL_STORAGE_POLLS_KEY);
 				if (localPolls) {
@@ -438,13 +430,6 @@
 					}
 					localStorage.removeItem(LOCAL_STORAGE_POLLS_KEY);
 				}
-			} else {
-				// Save to localStorage
-				const localPolls = localStorage.getItem(LOCAL_STORAGE_POLLS_KEY);
-				const pollsArr = localPolls ? JSON.parse(localPolls) : [];
-				newPollId = Date.now().toString();
-				pollsArr.push({ id: newPollId, ...pollData });
-				localStorage.setItem(LOCAL_STORAGE_POLLS_KEY, JSON.stringify(pollsArr));
 			}
 			await loadPolls();
 			selectedPoll = polls.find((p) => p.id === newPollId);
@@ -862,114 +847,6 @@
 							{creating ? 'Creating...' : 'Create Poll'}
 						</button>
 					</div>
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	<!-- Pro Upgrade Modal -->
-	{#if showProUpgradeModal}
-		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-		>
-			<div class="w-full max-w-md bg-gray-800 p-8">
-				<div class="mb-6 text-center">
-					<div
-						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center bg-gradient-to-r from-[rgb(var(--primary))] to-[#0066cc]"
-					>
-						<svg class="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-							></path>
-						</svg>
-					</div>
-					<h2 class="mb-2 text-2xl font-bold text-white">Upgrade to Pro</h2>
-					<p class="text-white/70">Poll creation is a Pro feature</p>
-				</div>
-
-				<div class="mb-6 space-y-3">
-					<div class="flex items-center space-x-3 text-white/80">
-						<svg
-							class="h-5 w-5 text-green-400"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							></path>
-						</svg>
-						<span>Create unlimited polls</span>
-					</div>
-					<div class="flex items-center space-x-3 text-white/80">
-						<svg
-							class="h-5 w-5 text-green-400"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							></path>
-						</svg>
-						<span>Advanced poll analytics</span>
-					</div>
-					<div class="flex items-center space-x-3 text-white/80">
-						<svg
-							class="h-5 w-5 text-green-400"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							></path>
-						</svg>
-						<span>Custom tier list themes</span>
-					</div>
-					<div class="flex items-center space-x-3 text-white/80">
-						<svg
-							class="h-5 w-5 text-green-400"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							></path>
-						</svg>
-						<span>Priority support</span>
-					</div>
-				</div>
-
-				<div class="flex space-x-3">
-					<button
-						class="flex-1 bg-gray-600 px-4 py-3 font-bold text-white transition-colors hover:bg-gray-700"
-						on:click={() => (showProUpgradeModal = false)}
-					>
-						Maybe Later
-					</button>
-					<a
-						href="/pro"
-						class="flex-1 bg-gradient-to-r from-[rgb(var(--primary))] to-[#0066cc] px-4 py-3 text-center font-bold text-white transition-all hover:brightness-110"
-					>
-						Upgrade Now
-					</a>
 				</div>
 			</div>
 		</div>
