@@ -136,10 +136,9 @@
 		}
 	}
 
-	// Gemini suggestion system state
 	let suggestedItems: any[] = [];
 	let usedSuggestedItems: string[] = [];
-	let lastGeminiTitle: string = '';
+	let lastSuggestionTitle: string = '';
 	let fetchingSuggestions = false;
 	let prefetchedImages: Record<string, string> = {};
 
@@ -582,11 +581,6 @@
 		);
 	})();
 
-	// Gemini debug modal state
-	let showGeminiDebugModal = false;
-	let lastGeminiPrompt = '';
-	let lastGeminiRawResponse = '';
-
 	// Handle item type changes - clean up inconsistent data
 	$: if (editingItem) {
 		// If changing to text type, remove image
@@ -878,20 +872,18 @@
 		);
 	}
 
-	async function fetchGeminiSuggestions(title: string, usedItems: string[] = []) {
+	async function fetchBrowserSuggestions(title: string, usedItems: string[] = []) {
 		if (!aiEnabled) return;
 
 		fetchingSuggestions = true;
 		try {
-			const prompt = buildGeminiPrompt(title, usedItems, 30);
-			lastGeminiPrompt = prompt;
+			const prompt = buildSuggestionPrompt(title, usedItems, 30);
 			const api = promptApi();
 			if (!api?.create) return;
 			const session = await api.create();
 			const raw = await session.prompt(prompt);
 			session.destroy?.();
 			const data = parseSuggestionJson(String(raw));
-			lastGeminiRawResponse = data.raw ?? data.raw_response ?? data.error ?? JSON.stringify(data);
 			if (data.items) {
 				const usedSet = new Set(usedItems.map((i) => i.toLowerCase()));
 				suggestedItems = data.items.filter((item: any) => !usedSet.has(item.name.toLowerCase()));
@@ -899,18 +891,17 @@
 			} else {
 				suggestedItems = [];
 			}
-			lastGeminiTitle = title;
+			lastSuggestionTitle = title;
 			lastFetchedTitle = title;
 		} catch (err) {
-			console.error('Failed to fetch Gemini suggestions:', err);
-			lastGeminiRawResponse = String(err);
+			console.error('Failed to fetch suggestions:', err);
 			suggestedItems = [];
 		} finally {
 			fetchingSuggestions = false;
 		}
 	}
 
-	function buildGeminiPrompt(title: string, usedItems: string[], n: number) {
+	function buildSuggestionPrompt(title: string, usedItems: string[], n: number) {
 		const used =
 			usedItems && usedItems.length > 0
 				? `\nAlready suggested/used items (do not repeat): ${usedItems.join(', ')}`
@@ -968,7 +959,7 @@
 				...tierList.tiers.flatMap((t) => t.items.map((i) => i.text)),
 				...tierList.unassignedItems.map((i) => i.text)
 			];
-			fetchGeminiSuggestions(tierList.title, allUsed);
+			fetchBrowserSuggestions(tierList.title, allUsed);
 		}
 		closeAddItemModal();
 	}
@@ -981,7 +972,7 @@
 			aiEnabled &&
 			!isForked &&
 			tierList.title &&
-			tierList.title !== lastGeminiTitle &&
+			tierList.title !== lastSuggestionTitle &&
 			tierList.title !== 'Untitled Tier List'
 		) {
 			const allUsed = [
@@ -989,7 +980,7 @@
 				...tierList.tiers.flatMap((t) => t.items.map((i) => i.text)),
 				...tierList.unassignedItems.map((i) => i.text)
 			];
-			fetchGeminiSuggestions(tierList.title, allUsed);
+			fetchBrowserSuggestions(tierList.title, allUsed);
 		}
 	}
 
@@ -1231,15 +1222,14 @@
 			...tierList.tiers.flatMap((t) => t.items.map((i) => i.text)),
 			...tierList.unassignedItems.map((i) => i.text)
 		];
-		// Only fetch Gemini suggestions if not forking and title has changed
 		const urlParams = new URLSearchParams(window.location.search);
 		const isForked = urlParams.get('forked') === 'true' || urlParams.get('fork') !== null;
 		if (
 			!isForked &&
-			tierList.title !== lastGeminiTitle &&
+			tierList.title !== lastSuggestionTitle &&
 			tierList.title !== 'Untitled Tier List'
 		) {
-			fetchGeminiSuggestions(tierList.title, allUsed);
+			fetchBrowserSuggestions(tierList.title, allUsed);
 		}
 
 		focusInput('#quick-add-input');
@@ -2067,11 +2057,8 @@
 								>Change the title to view AI suggestions</span
 							>
 						{:else}
-							<button
-								type="button"
-								class="text-accent ml-4 cursor-pointer border-0 bg-transparent p-0 text-xs hover:brightness-110"
-								on:click={() => (showGeminiDebugModal = true)}
-								in:fade={{ duration: 300 }}>No suggestions found</button
+							<span class="ml-4 text-xs text-white/70" in:fade={{ duration: 300 }}
+								>No suggestions found</span
 							>
 						{/if}
 					{:else if suggestedItems.length > 0}
@@ -3251,34 +3238,6 @@
 		</div>
 	{/if}
 </div>
-
-<!-- Gemini Debug Modal -->
-{#if showGeminiDebugModal}
-	<div class="bg-opacity-80 fixed inset-0 z-50 flex items-center justify-center bg-black">
-		<div class="relative mx-4 w-full max-w-2xl bg-gray-900 p-8 shadow-2xl">
-			<button
-				class="absolute top-4 right-4 text-2xl text-gray-400 hover:text-white"
-				on:click={() => (showGeminiDebugModal = false)}
-				aria-label="Close debug modal"
-			>
-				&times;
-			</button>
-			<h2 class="mb-4 text-2xl font-bold" style="color: rgb(var(--primary));">Gemini Debug Info</h2>
-			<div class="mb-6">
-				<div class="mb-2 text-sm font-semibold text-gray-300">Prompt Sent to Gemini:</div>
-				<pre
-					class="overflow-x-auto bg-gray-800 p-4 text-xs whitespace-pre-wrap text-gray-200"
-					style="max-height: 200px;">{lastGeminiPrompt}</pre>
-			</div>
-			<div>
-				<div class="mb-2 text-sm font-semibold text-gray-300">Raw Gemini Response:</div>
-				<pre
-					class="overflow-x-auto bg-gray-800 p-4 text-xs whitespace-pre-wrap text-gray-200"
-					style="max-height: 300px;">{lastGeminiRawResponse}</pre>
-			</div>
-		</div>
-	</div>
-{/if}
 
 {#if showLoginModal}
 	<LoginModal open={showLoginModal} on:close={handleCloseLogin} on:login={handleLogin} />

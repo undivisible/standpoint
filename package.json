@@ -1,7 +1,7 @@
 {
 	"name": "standpoint",
 	"private": true,
-	"version": "0.8.0-beta",
+	"version": "0.8.25-beta",
 	"author": {
 		"name": "max carter",
 		"email": "max@undivisible.dev"

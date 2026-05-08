@@ -22,11 +22,11 @@
 		<div
 			class="flex flex-col justify-center border-r border-white/20 bg-white/10 p-8 backdrop-blur"
 		>
-			<h1 class="mb-4 text-4xl font-bold text-white">This is Standpoint v0.8.0-beta</h1>
+			<h1 class="mb-4 text-4xl font-bold text-white">This is Standpoint v0.8.25-beta</h1>
 			<p class="text-lg text-white/70">
-				Standpoint is an opinion-based platform, where you can share your opinions on various
-				topics. Engage in discussions, vote on public polls, and explore tier lists created by the
-				community.
+				Standpoint is an opinion platform for polls, tierlists, drafts, profiles, and live Spectrum
+				rooms. It now runs on SvelteKit and Cloudflare Workers instead of the old separate backend
+				deployment.
 			</p>
 		</div>
 
@@ -40,7 +40,7 @@
 						: 'border-yellow-400/30 bg-yellow-500/20'
 			}`}
 		>
-			<h3 class="mb-4 text-2xl font-bold text-white">Backend</h3>
+			<h3 class="mb-4 text-2xl font-bold text-white">Runtime</h3>
 			<div class="mb-2 text-4xl font-bold text-white">
 				{backendStatus === 'connected'
 					? 'Connected'
@@ -57,12 +57,12 @@
 	</div>
 
 	<!-- Stack -->
-	<div class="grid grid-cols-7 gap-0">
+	<div class="grid grid-cols-2 gap-0 md:grid-cols-3 lg:grid-cols-9">
 		<div
 			class="flex flex-col items-center justify-center p-6 text-center transition-opacity hover:opacity-80"
 			style="background-color: #ff5705;"
 		>
-			<div class="mb-2 text-xl font-semibold text-white">Svelte</div>
+			<div class="mb-2 text-xl font-semibold text-white">Svelte 5</div>
 			<div class="text-white/80">Frontend</div>
 		</div>
 
@@ -78,22 +78,43 @@
 			class="flex flex-col items-center justify-center p-6 text-center transition-opacity hover:opacity-80"
 			style="background-color: #05ffac;"
 		>
-			<div class="mb-2 text-xl font-semibold text-black">Typescript</div>
-			<div class="text-black/70">Backend</div>
+			<div class="mb-2 text-xl font-semibold text-black">TypeScript</div>
+			<div class="text-black/70">Language</div>
+		</div>
+
+		<div
+			class="flex flex-col items-center justify-center bg-zinc-950 p-6 text-center transition-opacity hover:opacity-80"
+		>
+			<div class="mb-2 text-xl font-semibold text-white">Bun</div>
+			<div class="text-white/80">Tooling</div>
+		</div>
+
+		<div
+			class="flex flex-col items-center justify-center bg-orange-500 p-6 text-center transition-opacity hover:opacity-80"
+		>
+			<div class="mb-2 text-xl font-semibold text-white">Workers</div>
+			<div class="text-white/80">Deploy</div>
 		</div>
 
 		<div
 			class="flex flex-col items-center justify-center bg-blue-900 p-6 text-center transition-opacity hover:opacity-80"
 		>
-			<div class="mb-2 text-xl font-semibold text-white">Sanic</div>
-			<div class="text-white/80">API Server</div>
+			<div class="mb-2 text-xl font-semibold text-white">D1</div>
+			<div class="text-white/80">Data</div>
 		</div>
 
 		<div
-			class="flex flex-col items-center justify-center bg-purple-900 p-6 text-center transition-opacity hover:opacity-80"
+			class="flex flex-col items-center justify-center bg-violet-700 p-6 text-center transition-opacity hover:opacity-80"
 		>
-			<div class="mb-2 text-xl font-semibold text-white">Pydantic</div>
-			<div class="text-white/80">Validation</div>
+			<div class="mb-2 text-xl font-semibold text-white">R2</div>
+			<div class="text-white/80">Uploads</div>
+		</div>
+
+		<div
+			class="flex flex-col items-center justify-center bg-emerald-700 p-6 text-center transition-opacity hover:opacity-80"
+		>
+			<div class="mb-2 text-xl font-semibold text-white">Durable Objects</div>
+			<div class="text-white/80">Live Rooms</div>
 		</div>
 
 		<div
@@ -101,13 +122,6 @@
 		>
 			<div class="mb-2 text-xl font-semibold text-white">Tailwind</div>
 			<div class="text-white/80">CSS</div>
-		</div>
-
-		<div
-			class="flex flex-col items-center justify-center bg-pink-500 p-6 text-center transition-opacity hover:opacity-80"
-		>
-			<div class="mb-2 text-xl font-semibold text-white">TypeScript</div>
-			<div class="text-white/80">Language</div>
 		</div>
 	</div>
 </main>
