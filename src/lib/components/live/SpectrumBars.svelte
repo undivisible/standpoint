@@ -115,19 +115,6 @@
 		</div>
 	{/if}
 
-	{#if targetValue !== null && (mode === 'psychic' || mode === 'reveal')}
-		<div
-			class="target absolute top-0 bottom-0 z-40 w-[2px] bg-white shadow-[0_0_40px_rgba(255,255,255,0.9)]"
-			style={`left:${targetValue}%; --target-value:${targetValue};`}
-		>
-			<div
-				class="absolute top-[18vh] left-1/2 -translate-x-1/2 rounded-full border border-[rgba(var(--primary),0.6)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[rgb(var(--primary))]"
-			>
-				{Math.round(targetValue)}
-			</div>
-		</div>
-	{/if}
-
 	<div
 		class="spectrum-labels pointer-events-none absolute inset-x-0 top-8 z-50 flex items-start justify-between gap-4 px-6 text-sm font-semibold tracking-[0.18em] text-white/90 uppercase md:px-12"
 	>
@@ -172,9 +159,8 @@
 		left: var(--band-left);
 		width: var(--band-width);
 		display: flex;
-		align-items: flex-end;
+		align-items: center;
 		justify-content: center;
-		padding-bottom: 4.5rem;
 		background:
 			linear-gradient(
 				180deg,
@@ -226,9 +212,7 @@
 			width: auto;
 			bottom: var(--band-left);
 			height: var(--band-width);
-			padding-bottom: 0;
-			padding-left: 1rem;
-			justify-content: flex-start;
+			justify-content: center;
 			align-items: center;
 			background: linear-gradient(
 				90deg,
@@ -241,8 +225,7 @@
 				inset 0 -1px 0 rgba(0, 0, 0, 0.45);
 		}
 
-		.guess-marker,
-		.target {
+		.guess-marker {
 			top: auto;
 			right: 0;
 			bottom: var(--mobile-position);
@@ -250,14 +233,7 @@
 			width: auto;
 			height: 1px;
 			transition: bottom 200ms;
-		}
-
-		.guess-marker {
 			--mobile-position: calc(var(--guess-value) * 1%);
-		}
-
-		.target {
-			--mobile-position: calc(var(--target-value) * 1%);
 		}
 
 		.spectrum-labels {
