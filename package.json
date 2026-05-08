@@ -48,7 +48,7 @@
 	},
 	"dependencies": {
 		"@tailwindcss/cli": "^4.1.8",
-		"canvas-confetti": "^1.9.3",
+		"canvas-confetti": "^1.9.4",
 		"dotenv": "^16.5.0",
 		"wrangler": "^4.14.4"
 	},
