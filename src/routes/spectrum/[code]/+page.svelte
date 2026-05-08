@@ -10,7 +10,7 @@
 	import LeftRightPanel from '$lib/components/live/LeftRightPanel.svelte';
 	import RoundReveal from '$lib/components/live/RoundReveal.svelte';
 	import Scoreboard from '$lib/components/live/Scoreboard.svelte';
-	import type { PublicRoomState } from '$lib/live/types';
+	import type { PublicRoomState, RoomSettingsInput } from '$lib/live/types';
 
 	let playerName = '';
 	let joined = false;
@@ -159,6 +159,7 @@
 			room={roomState}
 			{currentPlayerId}
 			on:submit={(e: CustomEvent<string>) => client?.submitClue(e.detail)}
+			on:settings={(e: CustomEvent<RoomSettingsInput>) => client?.updateSettings(e.detail)}
 		/>
 	{:else if roomState.phase === 'guessing'}
 		<GuessPanel

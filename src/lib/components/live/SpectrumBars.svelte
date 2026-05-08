@@ -11,17 +11,13 @@
 	export let locked = false;
 	export let disabled = false;
 	export let showScoringBands = false;
+	export let axisEditable = false;
 
-	/** Four equal-width rings from the target outward (inside → outside: 4, 3, 2, 0 pts). */
-	const RING_SLICES = 4;
-	const OUTER_RADIUS = 16;
-	const SLICE = OUTER_RADIUS / RING_SLICES;
-
+	/** Wavelength scoring rings: narrow bullseye, wider 3, widest 2. */
 	const RING_META = [
-		{ inner: 3 * SLICE, outer: 4 * SLICE, label: '0', color: '#57534e' },
-		{ inner: 2 * SLICE, outer: 3 * SLICE, label: '2', color: '#facc15' },
-		{ inner: 1 * SLICE, outer: 2 * SLICE, label: '3', color: '#3b82f6' },
-		{ inner: 0, outer: 1 * SLICE, label: '4', color: '#10b981' }
+		{ inner: 8, outer: 14, label: '2', color: '#facc15' },
+		{ inner: 3, outer: 8, label: '3', color: '#3b82f6' },
+		{ inner: 0, outer: 3, label: '4', color: '#10b981' }
 	] as const;
 
 	type RingChunk = {
@@ -35,6 +31,7 @@
 	const dispatch = createEventDispatcher<{
 		guessChange: number;
 		guessLock: number;
+		axisEdit: 'left' | 'right';
 	}>();
 
 	let frame: HTMLElement | null = null;
@@ -158,6 +155,10 @@
 				<span class="zone-label">{chunk.label}</span>
 			</div>
 		{/each}
+		<div
+			class="target-line absolute top-0 bottom-0 z-40 w-[2px] bg-white shadow-[0_0_28px_rgba(255,255,255,0.85)]"
+			style={`left:${targetValue}%; --target-value:${targetValue};`}
+		></div>
 	{/if}
 
 	{#if mode === 'guessing' || mode === 'reveal'}
@@ -172,9 +173,23 @@
 	{/if}
 
 	<div
-		class="spectrum-labels pointer-events-none absolute inset-x-0 top-8 z-50 flex items-start justify-between gap-4 px-6 text-sm font-semibold tracking-[0.18em] text-white/90 uppercase md:px-12"
+		class="spectrum-labels absolute inset-x-0 top-8 z-50 flex items-start justify-between gap-4 px-6 text-sm font-semibold tracking-[0.18em] text-white/90 uppercase md:px-12"
+		class:pointer-events-none={!axisEditable}
 	>
-		<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{leftLabel}</span>
+		{#if axisEditable}
+			<button
+				type="button"
+				class="axis-pill pointer-events-auto rounded-full border border-white/25 bg-black/40 px-3 py-1 backdrop-blur-sm transition hover:border-white/50 hover:bg-black/55"
+				onclick={(e) => {
+					e.stopPropagation();
+					dispatch('axisEdit', 'left');
+				}}
+			>
+				{leftLabel}
+			</button>
+		{:else}
+			<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{leftLabel}</span>
+		{/if}
 		{#if prompt}
 			<span
 				class="prompt-pill max-w-[60%] rounded-full border border-white/30 bg-black/45 px-4 py-1 text-center text-xs leading-snug tracking-[0.18em] text-white normal-case backdrop-blur-sm md:text-sm"
@@ -182,7 +197,20 @@
 				{prompt}
 			</span>
 		{/if}
-		<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{rightLabel}</span>
+		{#if axisEditable}
+			<button
+				type="button"
+				class="axis-pill pointer-events-auto rounded-full border border-white/25 bg-black/40 px-3 py-1 backdrop-blur-sm transition hover:border-white/50 hover:bg-black/55"
+				onclick={(e) => {
+					e.stopPropagation();
+					dispatch('axisEdit', 'right');
+				}}
+			>
+				{rightLabel}
+			</button>
+		{:else}
+			<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{rightLabel}</span>
+		{/if}
 	</div>
 
 	<div
@@ -278,6 +306,16 @@
 			height: 1px;
 			transition: bottom 200ms;
 			--mobile-position: calc(var(--guess-value) * 1%);
+		}
+
+		.target-line {
+			top: auto;
+			right: 0;
+			bottom: var(--mobile-target);
+			left: 0 !important;
+			width: auto;
+			height: 2px;
+			--mobile-target: calc(var(--target-value) * 1%);
 		}
 
 		.spectrum-labels {
