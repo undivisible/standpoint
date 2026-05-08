@@ -90,10 +90,6 @@
 	role="application"
 	aria-label="Spectrum guess"
 >
-	<div class="spectrum-bg absolute inset-0"></div>
-	<div class="spectrum-rail absolute inset-x-0 top-1/2 h-px -translate-y-1/2"></div>
-	<div class="spectrum-ticks pointer-events-none absolute inset-0"></div>
-
 	{#if showZones}
 		{#each scoringZones as zone (zone.points)}
 			<div
@@ -162,49 +158,11 @@
 <style>
 	.spectrum {
 		touch-action: none;
-		background: #060615;
+		background: #000;
 	}
 
 	.spectrum.is-guessing {
 		cursor: ew-resize;
-	}
-
-	.spectrum-bg {
-		background:
-			radial-gradient(
-				ellipse 80% 60% at 50% 60%,
-				rgba(255, 255, 255, 0.07) 0%,
-				rgba(255, 255, 255, 0) 60%
-			),
-			linear-gradient(180deg, #0c0c1f 0%, #060615 60%, #03030a 100%);
-	}
-
-	.spectrum-rail {
-		background: linear-gradient(
-			90deg,
-			rgba(255, 255, 255, 0) 0%,
-			rgba(255, 255, 255, 0.18) 12%,
-			rgba(255, 255, 255, 0.18) 88%,
-			rgba(255, 255, 255, 0) 100%
-		);
-	}
-
-	.spectrum-ticks {
-		background-image:
-			repeating-linear-gradient(
-				90deg,
-				transparent 0,
-				transparent calc(10% - 1px),
-				rgba(255, 255, 255, 0.06) calc(10% - 1px),
-				rgba(255, 255, 255, 0.06) 10%
-			),
-			repeating-linear-gradient(
-				90deg,
-				transparent 0,
-				transparent calc(2% - 1px),
-				rgba(255, 255, 255, 0.025) calc(2% - 1px),
-				rgba(255, 255, 255, 0.025) 2%
-			);
 	}
 
 	.zone {
@@ -259,41 +217,6 @@
 	@media (max-width: 639px) {
 		.spectrum.is-guessing {
 			cursor: ns-resize;
-		}
-
-		.spectrum-rail {
-			top: auto;
-			right: 0;
-			bottom: 0;
-			left: 50%;
-			height: auto;
-			width: 1px;
-			transform: translateX(-50%);
-			background: linear-gradient(
-				0deg,
-				rgba(255, 255, 255, 0) 0%,
-				rgba(255, 255, 255, 0.18) 12%,
-				rgba(255, 255, 255, 0.18) 88%,
-				rgba(255, 255, 255, 0) 100%
-			);
-		}
-
-		.spectrum-ticks {
-			background-image:
-				repeating-linear-gradient(
-					0deg,
-					transparent 0,
-					transparent calc(10% - 1px),
-					rgba(255, 255, 255, 0.06) calc(10% - 1px),
-					rgba(255, 255, 255, 0.06) 10%
-				),
-				repeating-linear-gradient(
-					0deg,
-					transparent 0,
-					transparent calc(2% - 1px),
-					rgba(255, 255, 255, 0.025) calc(2% - 1px),
-					rgba(255, 255, 255, 0.025) 2%
-				);
 		}
 
 		.zone {
