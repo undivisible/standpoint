@@ -214,18 +214,15 @@ export class RoomDO {
 				right_label?: string | null;
 			}>();
 
-		const rawPlayers = playersResult.results ?? [];
-		let teamCursor = 0;
-		const players: Player[] = rawPlayers.map((player) => {
+		const players: Player[] = (playersResult.results ?? []).map((player) => {
 			const isHost = player.user_id === room.host_user_id;
-			const team: 0 | 1 | null = isHost ? null : ((teamCursor++ % 2) as 0 | 1);
 			return {
 				id: player.id,
 				userId: player.user_id,
 				displayName: player.display_name,
 				joinOrder: player.join_order,
 				connected: false,
-				team,
+				team: (player.join_order % 2) as 0 | 1,
 				isHost
 			};
 		});
@@ -390,16 +387,13 @@ export class RoomDO {
 
 		if (!player) {
 			const isHost = cleanUserId === room.hostUserId;
-			const teamAssignment: 0 | 1 | null = isHost
-				? null
-				: ((room.players.filter((p) => !p.isHost).length % 2) as 0 | 1);
 			player = {
 				id: randomId('player'),
 				userId: cleanUserId,
 				displayName: cleanName,
 				joinOrder: room.players.length,
 				connected: true,
-				team: teamAssignment,
+				team: (room.players.length % 2) as 0 | 1,
 				isHost
 			};
 			room.players.push(player);
@@ -432,14 +426,10 @@ export class RoomDO {
 	private async startGame(ws: WebSocket) {
 		this.assertHost(ws);
 		const room = this.requireRoom();
-		const teamA = room.players.filter(
-			(player) => player.connected && !player.isHost && player.team === 0
-		);
-		const teamB = room.players.filter(
-			(player) => player.connected && !player.isHost && player.team === 1
-		);
+		const teamA = room.players.filter((player) => player.connected && player.team === 0);
+		const teamB = room.players.filter((player) => player.connected && player.team === 1);
 		if (teamA.length < 1 || teamB.length < 1) {
-			throw new Error('Each team needs at least one connected non-host player.');
+			throw new Error('Each team needs at least one connected player.');
 		}
 		room.teamScores = { 0: 0, 1: 0 };
 		room.winningTeam = null;
@@ -460,12 +450,8 @@ export class RoomDO {
 
 	private async beginRound(incrementRound: boolean) {
 		const room = this.requireRoom();
-		const teamA = room.players.filter(
-			(player) => player.connected && !player.isHost && player.team === 0
-		);
-		const teamB = room.players.filter(
-			(player) => player.connected && !player.isHost && player.team === 1
-		);
+		const teamA = room.players.filter((player) => player.connected && player.team === 0);
+		const teamB = room.players.filter((player) => player.connected && player.team === 1);
 		if (teamA.length < 1 || teamB.length < 1) {
 			room.phase = 'lobby';
 			this.broadcastSnapshots();
@@ -594,7 +580,6 @@ export class RoomDO {
 		const player = room.players.find((candidate) => candidate.id === playerId);
 		if (room.phase !== 'guessing') throw new Error('Guessing is not open.');
 		if (playerId === psychic?.id) throw new Error('Psychic cannot guess.');
-		if (player?.isHost) throw new Error('Host cannot guess.');
 		if (player?.team !== psychic?.team) throw new Error('Only the psychic team can guess.');
 		if (!this.allow(this.guessLimits, playerId, 240))
 			throw new Error('Too many guess updates. Slow down.');
@@ -614,19 +599,13 @@ export class RoomDO {
 		const player = room.players.find((candidate) => candidate.id === playerId);
 		const psychic = this.currentPsychic();
 		if (playerId === psychic?.id) throw new Error('Psychic cannot lock the guess.');
-		if (player?.isHost) throw new Error('Host cannot lock the guess.');
 		if (room.phase !== 'guessing') throw new Error('There is no active guess to lock.');
 		if (room.guessValue === null || !room.guessPlayerId)
 			throw new Error('A non-psychic player must submit a guess first.');
 		if (room.targetValue === null) throw new Error('Round target is missing.');
 		room.lockedGuess = room.guessValue;
 		const otherTeamHasPlayer = room.players.some(
-			(p) =>
-				p.connected &&
-				!p.isHost &&
-				p.team !== null &&
-				p.team !== undefined &&
-				p.team !== psychic?.team
+			(p) => p.connected && p.team !== null && p.team !== undefined && p.team !== psychic?.team
 		);
 		room.phase = otherTeamHasPlayer ? 'left_right' : 'reveal';
 		await this.env.DB.prepare(
@@ -651,8 +630,8 @@ export class RoomDO {
 		const player = room.players.find((candidate) => candidate.id === playerId);
 		const psychic = this.currentPsychic();
 		if (room.phase !== 'left_right') throw new Error('Left/right guess is not open.');
-		if (!player || player.isHost || player.team === undefined || player.team === null)
-			throw new Error('Only a non-host player on the other team can guess left or right.');
+		if (!player || player.team === undefined || player.team === null)
+			throw new Error('Only a player on the other team can guess left or right.');
 		if (player.team === psychic?.team)
 			throw new Error('Only the other team can guess left or right.');
 		if (direction !== 'left' && direction !== 'right') throw new Error('Choose left or right.');
@@ -752,7 +731,6 @@ export class RoomDO {
 		const psychic = this.currentPsychic();
 		const host = this.isHost(ws);
 		const psychicAxes =
-			!host &&
 			room.phase === 'psychic_clue' &&
 			psychic?.id === playerId &&
 			!room.clue;
@@ -880,7 +858,7 @@ export class RoomDO {
 				return {
 					...player,
 					isHost,
-					team: isHost ? null : (player.team ?? null),
+					team: (player.team ?? (player.joinOrder % 2)) as 0 | 1,
 					psychicIndex: player.id === psychic?.id ? room.psychicIndex : undefined
 				};
 			}),

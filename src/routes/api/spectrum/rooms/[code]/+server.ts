@@ -47,18 +47,15 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 			connected: number;
 		}>();
 
-	const rawPlayers = playersResult.results ?? [];
-	let teamCursor = 0;
-	const players = rawPlayers.map((player) => {
+	const players = (playersResult.results ?? []).map((player) => {
 		const isHost = player.user_id === room.host_user_id;
-		const team: 0 | 1 | null = isHost ? null : ((teamCursor++ % 2) as 0 | 1);
 		return {
 			id: player.id,
 			userId: player.user_id,
 			displayName: player.display_name,
 			joinOrder: player.join_order,
 			connected: Boolean(player.connected),
-			team,
+			team: (player.join_order % 2) as 0 | 1,
 			isHost
 		};
 	});

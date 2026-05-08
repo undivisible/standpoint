@@ -16,10 +16,15 @@
 	let guessTimer: ReturnType<typeof setTimeout> | null = null;
 
 	$: isPsychic = room.psychicId === currentPlayerId;
-	$: isHost =
-		room.hostPlayerId === currentPlayerId ||
-		room.players.find((player) => player.id === currentPlayerId)?.isHost;
-	$: canGuess = !isPsychic && !isHost;
+	$: me = room.players.find((player) => player.id === currentPlayerId);
+	$: psychicPlayer = room.players.find((player) => player.id === room.psychicId);
+	$: canGuess =
+		!isPsychic &&
+		me?.team !== undefined &&
+		me?.team !== null &&
+		psychicPlayer?.team !== undefined &&
+		psychicPlayer?.team !== null &&
+		me.team === psychicPlayer.team;
 	$: locked = room.lockedGuess !== null;
 	$: if (room.guessValue !== null) guessValue = room.guessValue;
 
@@ -70,11 +75,11 @@
 	<h1 class="mt-2 text-3xl font-black text-[var(--text)]">{room.clue}</h1>
 	<p class="mt-2 text-[var(--text-secondary)]">
 		{#if isPsychic}
-			Watch the room place its guess.
-		{:else if isHost}
-			You are hosting — the players are guessing.
-		{:else}
+			Watch your team place the guess.
+		{:else if canGuess}
 			Tap or drag the spectrum to guess between {room.spectrum?.left} and {room.spectrum?.right}.
+		{:else}
+			Your teammate is placing the guess for your team.
 		{/if}
 	</p>
 	{#if canGuess}

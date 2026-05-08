@@ -7,8 +7,8 @@
 	export let winningTeam: 0 | 1 | null = null;
 	export let winThreshold = 10;
 
-	$: teamA = players.filter((player) => !player.isHost && player.team === 0);
-	$: teamB = players.filter((player) => !player.isHost && player.team === 1);
+	$: teamA = players.filter((player) => player.team === 0);
+	$: teamB = players.filter((player) => player.team === 1);
 
 	function teamLabel(team: 0 | 1) {
 		return team === 0 ? 'Team Red' : 'Team Blue';

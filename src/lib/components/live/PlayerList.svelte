@@ -19,11 +19,11 @@
 				<div>
 					<div class="font-medium text-[var(--text)]">{player.displayName}</div>
 					<div class="text-xs text-[var(--text-secondary)]">
+						{player.team === 0 ? 'Team Red' : 'Team Blue'}
 						{#if player.isHost}
-							Host · spectator · {player.connected ? 'connected' : 'disconnected'}
-						{:else}
-							{player.team === 0 ? 'Team Red' : 'Team Blue'} · {player.connected ? 'connected' : 'disconnected'}
+							<span> · host</span>
 						{/if}
+						<span> · {player.connected ? 'connected' : 'disconnected'}</span>
 					</div>
 				</div>
 			</div>

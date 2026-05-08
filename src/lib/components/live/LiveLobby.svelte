@@ -18,10 +18,10 @@
 		room.hostPlayerId === currentPlayerId ||
 		room.players.find((player) => player.id === currentPlayerId)?.isHost;
 	$: connectedTeamA = room.players.filter(
-		(player) => player.connected && !player.isHost && player.team === 0
+		(player) => player.connected && player.team === 0
 	).length;
 	$: connectedTeamB = room.players.filter(
-		(player) => player.connected && !player.isHost && player.team === 1
+		(player) => player.connected && player.team === 1
 	).length;
 	$: canStart = connectedTeamA >= 1 && connectedTeamB >= 1;
 </script>
@@ -33,9 +33,10 @@
 		<p class="text-sm tracking-[0.28em] text-[rgb(var(--primary))] uppercase">Spectrum</p>
 		<h1 class="mt-4 font-sans text-5xl font-black text-[var(--text)] md:text-7xl">Lobby</h1>
 		<p class="mt-4 max-w-2xl text-lg text-[var(--text-secondary)]">
-			Two teams take turns. Each round one team's psychic sees a hidden target on the spectrum, gives
-			a clue, and their team places a guess. The other team picks left or right of that guess. First
-			team to {room.winThreshold} wins. The host runs the game and doesn't play.
+			Two teams take turns. Each round the active team's psychic sees the hidden target and gives a
+			clue; a teammate places the dial guess. The other team picks left or right of that guess for a
+			catch-up point. Psychic rotates within the active team. First team to {room.winThreshold} wins.
+			The host is on a team like everyone else and can start the next round after a reveal.
 		</p>
 		<div class="mt-8 flex flex-wrap gap-3">
 			<button
@@ -58,8 +59,8 @@
 			<p class="mt-4 text-sm text-[var(--text-secondary)]">Waiting for the host to start.</p>
 		{:else if !canStart}
 			<p class="mt-4 text-sm text-[var(--text-secondary)]">
-				Each team needs at least one connected player. Team Red {connectedTeamA}, Team Blue
-				{connectedTeamB}.
+				Each team needs at least one connected player (join order alternates Red / Blue). Team Red
+				{connectedTeamA}, Team Blue {connectedTeamB}.
 			</p>
 		{/if}
 	</div>
