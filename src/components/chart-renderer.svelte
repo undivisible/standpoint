@@ -700,6 +700,7 @@
 						{/if}
 						<div
 							class="relative h-full w-full"
+							role="application"
 							on:pointerdown={handlePointerDown}
 							on:pointermove={handlePointerMove}
 							on:pointerup={handlePointerUp}

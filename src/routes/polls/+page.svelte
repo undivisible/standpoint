@@ -655,6 +655,9 @@
 			></div>
 			<div
 				class="fixed right-0 bottom-0 left-0 z-40 flex max-h-[70vh] w-full flex-col overflow-hidden rounded-t-2xl bg-gray-900/95 shadow-2xl backdrop-blur-xl"
+				role="dialog"
+				aria-modal="true"
+				tabindex="-1"
 				on:touchstart={(e) => {
 					dragStartY = e.touches[0].clientY;
 					dragActive = true;
