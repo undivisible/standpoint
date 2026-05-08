@@ -600,34 +600,16 @@ export class RoomDO {
 	}
 
 	private async updateSettings(ws: WebSocket, input: RoomSettingsInput) {
+		this.assertHost(ws);
 		const room = this.requireRoom();
-		const playerId = this.requirePlayer(ws);
-		const psychic = this.currentPsychic();
-		const host = this.isHost(ws);
-		const psychicAxes =
-			room.phase === 'psychic_clue' && psychic?.id === playerId && !room.clue;
-
-		if (!host && !psychicAxes) {
-			throw new Error(
-				'Only the host can change game settings, or the psychic can rename the spectrum ends before submitting a clue.'
-			);
-		}
 
 		const next = { ...room.settings };
-
-		if (host) {
-			if (input.customLeftLabel !== undefined)
-				next.customLeftLabel = normalizeSetting(input.customLeftLabel, 40);
-			if (input.customRightLabel !== undefined)
-				next.customRightLabel = normalizeSetting(input.customRightLabel, 40);
-			if (input.customPrompt !== undefined)
-				next.customPrompt = normalizeSetting(input.customPrompt, 200);
-		} else {
-			if (input.customLeftLabel !== undefined)
-				next.customLeftLabel = normalizeSetting(input.customLeftLabel, 40);
-			if (input.customRightLabel !== undefined)
-				next.customRightLabel = normalizeSetting(input.customRightLabel, 40);
-		}
+		if (input.customLeftLabel !== undefined)
+			next.customLeftLabel = normalizeSetting(input.customLeftLabel, 40);
+		if (input.customRightLabel !== undefined)
+			next.customRightLabel = normalizeSetting(input.customRightLabel, 40);
+		if (input.customPrompt !== undefined)
+			next.customPrompt = normalizeSetting(input.customPrompt, 200);
 
 		room.settings = next;
 		room.updatedAt = new Date().toISOString();
