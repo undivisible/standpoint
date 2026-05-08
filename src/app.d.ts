@@ -17,6 +17,10 @@ declare global {
 	interface DurableObjectStorage {
 		setAlarm(scheduledTime: number | Date): Promise<void>;
 		deleteAlarm(): Promise<void>;
+		get<T = unknown>(key: string): Promise<T | undefined>;
+		put<T = unknown>(key: string, value: T): Promise<void>;
+		delete(key: string): Promise<boolean>;
+		deleteAll(): Promise<void>;
 	}
 	interface DurableObjectState {
 		storage: DurableObjectStorage;

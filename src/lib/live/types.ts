@@ -6,6 +6,7 @@ export type LiveClientMessage =
 	| { type: 'lock_guess' }
 	| { type: 'submit_left_right'; direction: 'left' | 'right' }
 	| { type: 'next_round' }
+	| { type: 'reset_game' }
 	| { type: 'update_settings'; settings: RoomSettingsInput }
 	| { type: 'leave_room' };
 
@@ -19,7 +20,7 @@ export type LiveServerMessage =
 	| { type: 'guess_updated'; playerId: string; value: number }
 	| { type: 'guess_locked'; playerId: string; value: number }
 	| { type: 'reveal_started'; targetValue: number }
-	| { type: 'score_updated'; scores: ScoreEntry[] }
+	| { type: 'score_updated'; teamScores: TeamScores }
 	| { type: 'round_ended'; nextRoundInMs: number }
 	| { type: 'settings_updated'; settings: RoomSettings }
 	| { type: 'error'; message: string };
@@ -44,9 +45,19 @@ export type Player = {
 	displayName: string;
 	joinOrder: number;
 	connected: boolean;
-	team?: 0 | 1;
+	team?: 0 | 1 | null;
 	psychicIndex?: number;
 	isHost?: boolean;
+};
+
+export type TeamScores = { 0: number; 1: number };
+
+export type RoundResult = {
+	activeTeam: 0 | 1;
+	activePoints: number;
+	leftRightTeam: 0 | 1 | null;
+	leftRightPoints: number;
+	distance: number;
 };
 
 export type SpectrumCard = {
@@ -93,10 +104,13 @@ export type PublicRoomState = {
 	leftRightGuess: 'left' | 'right' | null;
 	leftRightTeam: 0 | 1 | null;
 	lockedGuess: number | null;
-	scores: ScoreEntry[];
-	lastRoundPoints: ScoreEntry[];
+	teamScores: TeamScores;
+	activeTeam: 0 | 1 | null;
+	winningTeam: 0 | 1 | null;
+	lastRoundResult: RoundResult | null;
 	lastDistance: number | null;
 	settings: RoomSettings;
+	winThreshold: number;
 	createdAt: string;
 	updatedAt: string;
 };

@@ -17,7 +17,13 @@
 	$: isHost =
 		room.hostPlayerId === currentPlayerId ||
 		room.players.find((player) => player.id === currentPlayerId)?.isHost;
-	$: connectedCount = room.players.filter((player) => player.connected).length;
+	$: connectedTeamA = room.players.filter(
+		(player) => player.connected && !player.isHost && player.team === 0
+	).length;
+	$: connectedTeamB = room.players.filter(
+		(player) => player.connected && !player.isHost && player.team === 1
+	).length;
+	$: canStart = connectedTeamA >= 1 && connectedTeamB >= 1;
 </script>
 
 <section
@@ -27,14 +33,15 @@
 		<p class="text-sm tracking-[0.28em] text-[rgb(var(--primary))] uppercase">Spectrum</p>
 		<h1 class="mt-4 font-sans text-5xl font-black text-[var(--text)] md:text-7xl">Lobby</h1>
 		<p class="mt-4 max-w-2xl text-lg text-[var(--text-secondary)]">
-			Invite at least one other player. One psychic sees the target, gives a clue, and everyone else
-			drags the room guess across the spectrum.
+			Two teams take turns. Each round one team's psychic sees a hidden target on the spectrum, gives
+			a clue, and their team places a guess. The other team picks left or right of that guess. First
+			team to {room.winThreshold} wins. The host runs the game and doesn't play.
 		</p>
 		<div class="mt-8 flex flex-wrap gap-3">
 			<button
 				type="button"
 				class="rounded-md bg-[rgb(var(--primary))] px-5 py-3 font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
-				disabled={!isHost || connectedCount < 2}
+				disabled={!isHost || !canStart}
 				onclick={() => dispatch('start')}
 			>
 				Start Game
@@ -49,8 +56,11 @@
 		</div>
 		{#if !isHost}
 			<p class="mt-4 text-sm text-[var(--text-secondary)]">Waiting for the host to start.</p>
-		{:else if connectedCount < 2}
-			<p class="mt-4 text-sm text-[var(--text-secondary)]">Two connected players are required.</p>
+		{:else if !canStart}
+			<p class="mt-4 text-sm text-[var(--text-secondary)]">
+				Each team needs at least one connected player. Team Red {connectedTeamA}, Team Blue
+				{connectedTeamB}.
+			</p>
 		{/if}
 	</div>
 

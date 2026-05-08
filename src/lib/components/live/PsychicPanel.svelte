@@ -130,11 +130,27 @@
 >
 	{#if isPsychic}
 		<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">You are psychic</p>
-		<h1 class="mt-2 text-2xl font-bold text-[var(--text)]">
-			{room.spectrum?.left} / {room.spectrum?.right}
-		</h1>
-		<p class="mt-2 text-sm text-[var(--text-secondary)]">
-			Tap either axis label on the spectrum to rename it.
+		<div class="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+			<button
+				type="button"
+				class="truncate rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-left text-base font-bold text-[var(--text)] transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
+				title="Rename left end"
+				onclick={() => openAxisEdit('left')}
+			>
+				{room.spectrum?.left}
+			</button>
+			<span class="text-sm text-[var(--text-secondary)]">/</span>
+			<button
+				type="button"
+				class="truncate rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-right text-base font-bold text-[var(--text)] transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
+				title="Rename right end"
+				onclick={() => openAxisEdit('right')}
+			>
+				{room.spectrum?.right}
+			</button>
+		</div>
+		<p class="mt-2 text-xs text-[var(--text-secondary)]">
+			Tap either label to rename that end of the spectrum.
 		</p>
 		<textarea
 			bind:value={clue}

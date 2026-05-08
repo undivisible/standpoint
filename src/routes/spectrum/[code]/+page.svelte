@@ -174,21 +174,28 @@
 			{currentPlayerId}
 			on:guess={(event) => client?.submitLeftRight(event.detail)}
 		/>
-	{:else if roomState.phase === 'reveal'}
-		<RoundReveal room={roomState} {currentPlayerId} on:next={() => client?.nextRound()} />
+	{:else if roomState.phase === 'reveal' || roomState.phase === 'ended'}
+		<RoundReveal
+			room={roomState}
+			{currentPlayerId}
+			on:next={() => client?.nextRound()}
+			on:reset={() => client?.resetGame()}
+		/>
 	{:else if roomState.phase === 'scoring'}
 		<section class="min-h-[calc(100vh-5rem)] bg-[var(--bg)] px-4 py-10">
 			<div class="mx-auto max-w-3xl">
 				<h1 class="text-4xl font-black text-[var(--text)]">Next round starting</h1>
 				<p class="mt-2 text-[var(--text-secondary)]">Scores are locked. Rotating psychic.</p>
 				<div class="mt-6">
-					<Scoreboard players={roomState.players} scores={roomState.scores} />
+					<Scoreboard
+						players={roomState.players}
+						teamScores={roomState.teamScores}
+						activeTeam={roomState.activeTeam}
+						winningTeam={roomState.winningTeam}
+						winThreshold={roomState.winThreshold}
+					/>
 				</div>
 			</div>
-		</section>
-	{:else}
-		<section class="min-h-[calc(100vh-5rem)] bg-[var(--bg)] px-4 py-10 text-[var(--text)]">
-			Game ended.
 		</section>
 	{/if}
 {/if}

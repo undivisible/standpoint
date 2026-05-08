@@ -15,9 +15,9 @@
 
 	/** Wavelength scoring rings: narrow bullseye, wider 3, widest 2. */
 	const RING_META = [
-		{ inner: 8, outer: 14, label: '2', color: '#facc15' },
-		{ inner: 3, outer: 8, label: '3', color: '#3b82f6' },
-		{ inner: 0, outer: 3, label: '4', color: '#10b981' }
+		{ inner: 8, outer: 16, label: '2', color: '#facc15' },
+		{ inner: 2, outer: 8, label: '3', color: '#3b82f6' },
+		{ inner: 0, outer: 2, label: '4', color: '#10b981' }
 	] as const;
 
 	type RingChunk = {
@@ -30,7 +30,6 @@
 
 	const dispatch = createEventDispatcher<{
 		guessChange: number;
-		guessLock: number;
 		axisEdit: 'left' | 'right';
 	}>();
 
@@ -78,7 +77,6 @@
 		if (!dragging) return;
 		dragging = false;
 		(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-		dispatch('guessLock', value);
 	}
 
 	function ringChunkStyle(center: number, inner: number, outer: number, side: 'left' | 'right' | 'center'): string {
@@ -217,7 +215,7 @@
 		class="pointer-events-none absolute inset-x-0 bottom-8 z-50 flex justify-center px-6 text-center text-sm text-white/70"
 	>
 		{#if mode === 'guessing' && !locked}
-			<span>Drag anywhere on the spectrum</span>
+			<span>Tap or drag the spectrum to place the guess</span>
 		{:else if mode === 'psychic'}
 			<span>Give a clue that points the room toward the hidden target</span>
 		{:else if mode === 'reveal'}

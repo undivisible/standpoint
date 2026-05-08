@@ -77,6 +77,10 @@ export class LiveWSClient {
 		this.send({ type: 'next_round' });
 	}
 
+	resetGame() {
+		this.send({ type: 'reset_game' });
+	}
+
 	updateSettings(settings: RoomSettingsInput) {
 		this.send({ type: 'update_settings', settings });
 	}

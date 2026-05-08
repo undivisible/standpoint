@@ -47,20 +47,21 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 			connected: number;
 		}>();
 
-	const scoresResult = await db
-		.prepare('SELECT player_id, points FROM standpoint_room_scores WHERE room_id = ?')
-		.bind(room.id)
-		.all<{ player_id: string; points: number }>();
-
-	const players = (playersResult.results ?? []).map((player) => ({
-		id: player.id,
-		userId: player.user_id,
-		displayName: player.display_name,
-		joinOrder: player.join_order,
-		connected: Boolean(player.connected),
-		team: (player.join_order % 2) as 0 | 1,
-		isHost: player.user_id === room.host_user_id
-	}));
+	const rawPlayers = playersResult.results ?? [];
+	let teamCursor = 0;
+	const players = rawPlayers.map((player) => {
+		const isHost = player.user_id === room.host_user_id;
+		const team: 0 | 1 | null = isHost ? null : ((teamCursor++ % 2) as 0 | 1);
+		return {
+			id: player.id,
+			userId: player.user_id,
+			displayName: player.display_name,
+			joinOrder: player.join_order,
+			connected: Boolean(player.connected),
+			team,
+			isHost
+		};
+	});
 	const hostPlayerId = players.find((player) => player.userId === room.host_user_id)?.id;
 	return {
 		id: room.id,
@@ -70,10 +71,7 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 		visibility: room.visibility ?? 'private',
 		phase: room.status,
 		status: room.status,
-		players: players.map((player) => ({
-			...player,
-			isHost: player.id === hostPlayerId || player.userId === room.host_user_id
-		})),
+		players,
 		psychicHistory: [],
 		psychicIndex: 0,
 		psychicId: null,
@@ -85,17 +83,17 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 		leftRightGuess: null,
 		leftRightTeam: null,
 		lockedGuess: null,
-		scores: (scoresResult.results ?? []).map((score) => ({
-			playerId: score.player_id,
-			points: score.points
-		})),
-		lastRoundPoints: [],
+		teamScores: { 0: 0, 1: 0 },
+		activeTeam: null,
+		winningTeam: null,
+		lastRoundResult: null,
 		lastDistance: null,
 		settings: {
 			customLeftLabel: null,
 			customRightLabel: null,
 			customPrompt: null
 		},
+		winThreshold: 10,
 		createdAt: room.created_at,
 		updatedAt: room.updated_at
 	};
