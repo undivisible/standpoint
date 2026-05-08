@@ -159,6 +159,7 @@
 			{currentPlayerId}
 			on:submit={(e: CustomEvent<string>) => client?.submitClue(e.detail)}
 			on:settings={(e: CustomEvent<RoomSettingsInput>) => client?.updateSettings(e.detail)}
+			on:kick={(event) => client?.kickPlayer(event.detail)}
 		/>
 	{:else if roomState.phase === 'guessing'}
 		<GuessPanel
@@ -166,6 +167,7 @@
 			{currentPlayerId}
 			on:guess={(event) => client?.updateGuess(event.detail)}
 			on:lock={() => client?.lockGuess()}
+			on:kick={(event) => client?.kickPlayer(event.detail)}
 		/>
 	{:else if roomState.phase === 'reveal' || roomState.phase === 'scoring'}
 		<RoundReveal
@@ -173,6 +175,7 @@
 			{currentPlayerId}
 			on:next={() => client?.nextRound()}
 			on:reset={() => client?.resetGame()}
+			on:kick={(event) => client?.kickPlayer(event.detail)}
 		/>
 	{/if}
 {/if}

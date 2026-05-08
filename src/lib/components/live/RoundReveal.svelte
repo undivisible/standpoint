@@ -7,7 +7,7 @@
 	export let room: PublicRoomState;
 	export let currentPlayerId: string | null = null;
 
-	const dispatch = createEventDispatcher<{ next: void; reset: void }>();
+	const dispatch = createEventDispatcher<{ next: void; reset: void; kick: string }>();
 	$: isHost =
 		room.hostPlayerId === currentPlayerId ||
 		room.players.find((player) => player.id === currentPlayerId)?.isHost;
@@ -94,5 +94,7 @@
 		scores={room.scores}
 		psychicId={room.psychicId}
 		{currentPlayerId}
+		canKick={isHost}
+		on:kick={(event) => dispatch('kick', event.detail)}
 	/>
 </div>

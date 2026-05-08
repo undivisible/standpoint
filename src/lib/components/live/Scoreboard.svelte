@@ -1,10 +1,14 @@
 <script lang="ts">
+	import { createEventDispatcher } from 'svelte';
 	import type { Player, ScoreEntry } from '$lib/live/types';
 
 	export let players: Player[] = [];
 	export let scores: ScoreEntry[] = [];
 	export let psychicId: string | null = null;
 	export let currentPlayerId: string | null = null;
+	export let canKick = false;
+
+	const dispatch = createEventDispatcher<{ kick: string }>();
 
 	$: rows = players
 		.map((player) => ({
@@ -46,7 +50,19 @@
 						<span class="text-xs text-[var(--text-secondary)]">offline</span>
 					{/if}
 				</div>
-				<span class="text-lg font-bold text-[rgb(var(--primary))]">{row.points}</span>
+				<div class="flex items-center gap-2">
+					<span class="text-lg font-bold text-[rgb(var(--primary))]">{row.points}</span>
+					{#if canKick && !row.player.isHost && !isYou}
+						<button
+							type="button"
+							class="rounded-md border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--text-secondary)] transition hover:border-red-500 hover:text-red-300"
+							title="Remove from room"
+							onclick={() => dispatch('kick', row.player.id)}
+						>
+							Kick
+						</button>
+					{/if}
+				</div>
 			</div>
 		{/each}
 	</div>

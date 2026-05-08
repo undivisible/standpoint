@@ -9,6 +9,7 @@
 	const dispatch = createEventDispatcher<{
 		submit: string;
 		settings: RoomSettingsInput;
+		kick: string;
 	}>();
 
 	let clue = '';
@@ -18,6 +19,9 @@
 	let rightDraft = '';
 
 	$: isPsychic = room.psychicId === currentPlayerId;
+	$: isHost =
+		room.hostPlayerId === currentPlayerId ||
+		room.players.find((player) => player.id === currentPlayerId)?.isHost;
 	$: canSubmit = isPsychic && clue.trim().length > 0 && !/\d|%|percent/i.test(clue.trim());
 	$: if (editingSide !== 'left') leftDraft = room.spectrum?.left ?? '';
 	$: if (editingSide !== 'right') rightDraft = room.spectrum?.right ?? '';
@@ -180,5 +184,28 @@
 		</p>
 		<h1 class="mt-2 text-2xl font-bold text-[var(--text)]">Waiting for the clue</h1>
 		<p class="mt-2 text-[var(--text-secondary)]">The target is hidden until reveal.</p>
+	{/if}
+	{#if isHost}
+		<div class="mt-4 flex flex-wrap gap-1.5 border-t border-[var(--border)] pt-3">
+			<span class="text-xs tracking-[0.18em] text-[var(--text-secondary)] uppercase">Players</span>
+			{#each room.players.filter((p) => p.connected) as player (player.id)}
+				{@const isMe = player.id === currentPlayerId}
+				<span
+					class="inline-flex items-center gap-1 rounded-full border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--text-secondary)]"
+				>
+					<span>{player.displayName}</span>
+					{#if !player.isHost && !isMe}
+						<button
+							type="button"
+							class="rounded-full border border-[var(--border)] px-1.5 text-[10px] transition hover:border-red-500 hover:text-red-300"
+							title="Kick"
+							onclick={() => dispatch('kick', player.id)}
+						>
+							×
+						</button>
+					{/if}
+				</span>
+			{/each}
+		</div>
 	{/if}
 </div>

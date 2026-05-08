@@ -9,6 +9,7 @@
 	const dispatch = createEventDispatcher<{
 		guess: number;
 		lock: void;
+		kick: string;
 	}>();
 
 	$: isPsychic = room.psychicId === currentPlayerId;
@@ -75,15 +76,26 @@
 		<div class="mt-3 flex flex-wrap justify-center gap-1.5">
 			{#each room.players.filter((p) => p.connected && p.id !== room.psychicId) as player (player.id)}
 				{@const has = room.guesses?.[player.id] !== undefined}
+				{@const isMe = player.id === currentPlayerId}
 				<span
-					class="rounded-full border px-2.5 py-1 text-xs"
+					class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs"
 					class:border-[var(--border)]={!has}
 					class:text-[var(--text-secondary)]={!has}
 					class:border-[rgb(var(--primary))]={has}
 					class:text-[rgb(var(--primary))]={has}
 					title={has ? `Guessed ${room.guesses?.[player.id]}` : 'Hasn’t guessed yet'}
 				>
-					{player.displayName}{has ? ' ✓' : ''}
+					<span>{player.displayName}{has ? ' ✓' : ''}</span>
+					{#if isHost && !player.isHost && !isMe}
+						<button
+							type="button"
+							class="rounded-full border border-[var(--border)] px-1.5 text-[10px] text-[var(--text-secondary)] transition hover:border-red-500 hover:text-red-300"
+							title="Kick"
+							onclick={() => dispatch('kick', player.id)}
+						>
+							×
+						</button>
+					{/if}
 				</span>
 			{/each}
 		</div>
