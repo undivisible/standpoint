@@ -53,6 +53,7 @@
 <SpectrumBars
 	leftLabel={room.spectrum?.left ?? ''}
 	rightLabel={room.spectrum?.right ?? ''}
+	prompt={room.settings?.customPrompt ?? null}
 	mode={isPsychic ? 'spectator' : 'guessing'}
 	bind:value={guessValue}
 	{guessValue}

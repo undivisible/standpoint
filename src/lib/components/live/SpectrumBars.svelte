@@ -3,6 +3,7 @@
 
 	export let leftLabel = '';
 	export let rightLabel = '';
+	export let prompt: string | null = null;
 	export let mode: 'psychic' | 'guessing' | 'reveal' | 'spectator' = 'spectator';
 	export let targetValue: number | null = null;
 	export let guessValue = 50;
@@ -10,6 +11,12 @@
 	export let locked = false;
 	export let disabled = false;
 	export let showScoringBands = false;
+
+	const scoringZones = [
+		{ radius: 14, points: 2, color: '#facc15' },
+		{ radius: 8, points: 3, color: '#3b82f6' },
+		{ radius: 4, points: 4, color: '#10b981' }
+	];
 
 	const dispatch = createEventDispatcher<{
 		guessChange: number;
@@ -21,6 +28,7 @@
 	let displayGuess = value;
 
 	$: displayGuess = value ?? guessValue;
+	$: showZones = targetValue !== null && (mode === 'psychic' || mode === 'reveal' || showScoringBands);
 
 	function clamp(next: number) {
 		return Math.max(0, Math.min(100, next));
@@ -62,16 +70,16 @@
 		dispatch('guessLock', value);
 	}
 
-	function bandStyle(radius: number, color: string) {
+	function bandStyle(radius: number) {
 		const center = targetValue ?? 50;
 		const left = clamp(center - radius);
 		const width = clamp(center + radius) - left;
-		return `left:${left}%; width:${width}%; background:${color};`;
+		return `--band-left:${left}%; --band-width:${width}%;`;
 	}
 </script>
 
 <section
-	class="spectrum fixed inset-0 isolate h-screen w-screen overflow-hidden bg-[var(--bg)] text-[var(--text)]"
+	class="spectrum fixed inset-0 isolate h-screen w-screen overflow-hidden text-[var(--text)]"
 	class:is-guessing={mode === 'guessing' && !disabled && !locked}
 	class:is-reveal={mode === 'reveal'}
 	bind:this={frame}
@@ -82,22 +90,22 @@
 	role="application"
 	aria-label="Spectrum guess"
 >
-	<div class="spectrum-field absolute inset-0"></div>
-	<div class="absolute inset-0 bg-[linear-gradient(180deg,transparent,rgba(0,0,0,0.42))]"></div>
+	<div class="spectrum-bg absolute inset-0"></div>
+	<div class="spectrum-rail absolute inset-x-0 top-1/2 h-px -translate-y-1/2"></div>
+	<div class="spectrum-ticks pointer-events-none absolute inset-0"></div>
 
-	{#if showScoringBands && targetValue !== null}
-		<div
-			class="absolute inset-y-0 z-10 opacity-25 blur-sm"
-			style={bandStyle(14, 'rgba(245,158,11,0.55)')}
-		></div>
-		<div
-			class="absolute inset-y-0 z-10 opacity-25 blur-sm"
-			style={bandStyle(8, 'rgba(59,130,246,0.55)')}
-		></div>
-		<div
-			class="absolute inset-y-0 z-10 opacity-30 blur-sm"
-			style={bandStyle(4, 'rgba(34,197,94,0.6)')}
-		></div>
+	{#if showZones}
+		{#each scoringZones as zone (zone.points)}
+			<div
+				class="zone"
+				class:zone-2={zone.points === 2}
+				class:zone-3={zone.points === 3}
+				class:zone-4={zone.points === 4}
+				style={`${bandStyle(zone.radius)} --zone-color:${zone.color};`}
+			>
+				<span class="zone-label">{zone.points}</span>
+			</div>
+		{/each}
 	{/if}
 
 	{#if mode === 'guessing' || mode === 'reveal'}
@@ -125,14 +133,21 @@
 	{/if}
 
 	<div
-		class="spectrum-labels pointer-events-none absolute inset-x-0 top-8 z-50 flex items-start justify-between px-6 text-sm font-semibold tracking-[0.18em] text-[var(--text-secondary)] uppercase md:px-12"
+		class="spectrum-labels pointer-events-none absolute inset-x-0 top-8 z-50 flex items-start justify-between gap-4 px-6 text-sm font-semibold tracking-[0.18em] text-white/90 uppercase md:px-12"
 	>
-		<span>{leftLabel}</span>
-		<span>{rightLabel}</span>
+		<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{leftLabel}</span>
+		{#if prompt}
+			<span
+				class="prompt-pill max-w-[60%] rounded-full border border-white/30 bg-black/45 px-4 py-1 text-center text-xs leading-snug tracking-[0.18em] text-white normal-case backdrop-blur-sm md:text-sm"
+			>
+				{prompt}
+			</span>
+		{/if}
+		<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{rightLabel}</span>
 	</div>
 
 	<div
-		class="pointer-events-none absolute inset-x-0 bottom-8 z-50 flex justify-center px-6 text-center text-sm text-[var(--text-secondary)]"
+		class="pointer-events-none absolute inset-x-0 bottom-8 z-50 flex justify-center px-6 text-center text-sm text-white/70"
 	>
 		{#if mode === 'guessing' && !locked}
 			<span>Drag anywhere on the spectrum</span>
@@ -147,23 +162,98 @@
 <style>
 	.spectrum {
 		touch-action: none;
+		background: #060615;
 	}
 
 	.spectrum.is-guessing {
 		cursor: ew-resize;
 	}
 
-	.spectrum-field {
+	.spectrum-bg {
+		background:
+			radial-gradient(
+				ellipse 80% 60% at 50% 60%,
+				rgba(255, 255, 255, 0.07) 0%,
+				rgba(255, 255, 255, 0) 60%
+			),
+			linear-gradient(180deg, #0c0c1f 0%, #060615 60%, #03030a 100%);
+	}
+
+	.spectrum-rail {
 		background: linear-gradient(
 			90deg,
-			#ef4444 0%,
-			#f97316 18%,
-			#facc15 36%,
-			#22c55e 50%,
-			#14b8a6 64%,
-			#3b82f6 82%,
-			#8b5cf6 100%
+			rgba(255, 255, 255, 0) 0%,
+			rgba(255, 255, 255, 0.18) 12%,
+			rgba(255, 255, 255, 0.18) 88%,
+			rgba(255, 255, 255, 0) 100%
 		);
+	}
+
+	.spectrum-ticks {
+		background-image:
+			repeating-linear-gradient(
+				90deg,
+				transparent 0,
+				transparent calc(10% - 1px),
+				rgba(255, 255, 255, 0.06) calc(10% - 1px),
+				rgba(255, 255, 255, 0.06) 10%
+			),
+			repeating-linear-gradient(
+				90deg,
+				transparent 0,
+				transparent calc(2% - 1px),
+				rgba(255, 255, 255, 0.025) calc(2% - 1px),
+				rgba(255, 255, 255, 0.025) 2%
+			);
+	}
+
+	.zone {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: var(--band-left);
+		width: var(--band-width);
+		display: flex;
+		align-items: flex-end;
+		justify-content: center;
+		padding-bottom: 4.5rem;
+		background:
+			linear-gradient(
+				180deg,
+				color-mix(in srgb, var(--zone-color) 70%, transparent) 0%,
+				color-mix(in srgb, var(--zone-color) 90%, transparent) 50%,
+				color-mix(in srgb, var(--zone-color) 70%, transparent) 100%
+			);
+		box-shadow:
+			inset 1px 0 0 rgba(255, 255, 255, 0.25),
+			inset -1px 0 0 rgba(0, 0, 0, 0.45);
+	}
+
+	.zone-2 {
+		z-index: 11;
+	}
+	.zone-3 {
+		z-index: 12;
+	}
+	.zone-4 {
+		z-index: 13;
+	}
+
+	.zone-label {
+		position: relative;
+		display: inline-flex;
+		min-width: 2.5rem;
+		justify-content: center;
+		border-radius: 9999px;
+		background: rgba(0, 0, 0, 0.55);
+		border: 1px solid rgba(255, 255, 255, 0.35);
+		padding: 0.25rem 0.75rem;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.18em;
+		color: white;
+		text-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
 	}
 
 	@media (max-width: 639px) {
@@ -171,17 +261,61 @@
 			cursor: ns-resize;
 		}
 
-		.spectrum-field {
+		.spectrum-rail {
+			top: auto;
+			right: 0;
+			bottom: 0;
+			left: 50%;
+			height: auto;
+			width: 1px;
+			transform: translateX(-50%);
 			background: linear-gradient(
 				0deg,
-				#ef4444 0%,
-				#f97316 18%,
-				#facc15 36%,
-				#22c55e 50%,
-				#14b8a6 64%,
-				#3b82f6 82%,
-				#8b5cf6 100%
+				rgba(255, 255, 255, 0) 0%,
+				rgba(255, 255, 255, 0.18) 12%,
+				rgba(255, 255, 255, 0.18) 88%,
+				rgba(255, 255, 255, 0) 100%
 			);
+		}
+
+		.spectrum-ticks {
+			background-image:
+				repeating-linear-gradient(
+					0deg,
+					transparent 0,
+					transparent calc(10% - 1px),
+					rgba(255, 255, 255, 0.06) calc(10% - 1px),
+					rgba(255, 255, 255, 0.06) 10%
+				),
+				repeating-linear-gradient(
+					0deg,
+					transparent 0,
+					transparent calc(2% - 1px),
+					rgba(255, 255, 255, 0.025) calc(2% - 1px),
+					rgba(255, 255, 255, 0.025) 2%
+				);
+		}
+
+		.zone {
+			top: auto;
+			left: 0;
+			right: 0;
+			width: auto;
+			bottom: var(--band-left);
+			height: var(--band-width);
+			padding-bottom: 0;
+			padding-left: 1rem;
+			justify-content: flex-start;
+			align-items: center;
+			background: linear-gradient(
+				90deg,
+				color-mix(in srgb, var(--zone-color) 70%, transparent) 0%,
+				color-mix(in srgb, var(--zone-color) 90%, transparent) 50%,
+				color-mix(in srgb, var(--zone-color) 70%, transparent) 100%
+			);
+			box-shadow:
+				inset 0 1px 0 rgba(255, 255, 255, 0.25),
+				inset 0 -1px 0 rgba(0, 0, 0, 0.45);
 		}
 
 		.guess-marker,
@@ -207,6 +341,10 @@
 			inset: 0 auto 0 0;
 			flex-direction: column-reverse;
 			padding: 1.5rem;
+		}
+
+		.prompt-pill {
+			max-width: none;
 		}
 	}
 </style>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import type { PublicRoomState } from '$lib/live/types';
+	import type { PublicRoomState, RoomSettingsInput } from '$lib/live/types';
+	import GameSettings from './GameSettings.svelte';
 	import PlayerList from './PlayerList.svelte';
 	import RoomCodeInvite from './RoomCodeInvite.svelte';
 
@@ -10,6 +11,7 @@
 	const dispatch = createEventDispatcher<{
 		start: void;
 		leave: void;
+		settings: RoomSettingsInput;
 	}>();
 
 	$: isHost =
@@ -54,6 +56,26 @@
 
 	<div class="space-y-4">
 		<RoomCodeInvite code={room.code} />
+		{#if isHost}
+			<GameSettings
+				settings={room.settings}
+				on:save={(event) => dispatch('settings', event.detail)}
+			/>
+		{:else if room.settings.customPrompt || room.settings.customLeftLabel || room.settings.customRightLabel}
+			<div class="border border-[var(--border)] bg-[var(--surface)] p-5">
+				<p class="text-xs tracking-[0.24em] text-[var(--text-secondary)] uppercase">
+					Game settings
+				</p>
+				{#if room.settings.customPrompt}
+					<p class="mt-3 text-base text-[var(--text)]">{room.settings.customPrompt}</p>
+				{/if}
+				{#if room.settings.customLeftLabel || room.settings.customRightLabel}
+					<p class="mt-2 text-sm text-[var(--text-secondary)]">
+						{room.settings.customLeftLabel ?? '—'} / {room.settings.customRightLabel ?? '—'}
+					</p>
+				{/if}
+			</div>
+		{/if}
 		<PlayerList players={room.players} psychicId={room.psychicId} />
 	</div>
 </section>

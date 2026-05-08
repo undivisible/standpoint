@@ -2,6 +2,8 @@ import type {
 	Phase,
 	Player,
 	PublicRoomState,
+	RoomSettings,
+	RoomSettingsInput,
 	RoomVisibility,
 	ScoreEntry,
 	SpectrumCard
@@ -33,6 +35,7 @@ type RoomState = {
 	scores: Map<string, number>;
 	lastRoundPoints: ScoreEntry[];
 	lastDistance: number | null;
+	settings: RoomSettings;
 	currentRoundId?: string;
 	createdAt: string;
 	updatedAt: string;
@@ -46,6 +49,7 @@ type ClientMessage =
 	| { type: 'lock_guess' }
 	| { type: 'submit_left_right'; direction: 'left' | 'right' }
 	| { type: 'next_round' }
+	| { type: 'update_settings'; settings: RoomSettingsInput }
 	| { type: 'leave_room' };
 
 type RateBucket = {
@@ -71,6 +75,12 @@ function sanitize(value: unknown, fallback = '', max = 120) {
 		.replace(/\s+/g, ' ')
 		.trim()
 		.slice(0, max);
+}
+
+function normalizeSetting(value: unknown, max: number): string | null {
+	if (value === null || value === undefined) return null;
+	const cleaned = sanitize(value, '', max);
+	return cleaned ? cleaned : null;
 }
 
 function scoreForDistance(distance: number) {
@@ -211,6 +221,11 @@ export class RoomDO {
 				round?.guess_value !== null && round?.guess_value !== undefined
 					? Math.abs(round.target_value - round.guess_value)
 					: null,
+			settings: {
+				customLeftLabel: null,
+				customRightLabel: null,
+				customPrompt: null
+			},
 			currentRoundId: round?.id,
 			createdAt: room.created_at,
 			updatedAt: room.updated_at
@@ -266,6 +281,9 @@ export class RoomDO {
 				break;
 			case 'next_round':
 				await this.nextRound(ws);
+				break;
+			case 'update_settings':
+				await this.updateSettings(ws, message.settings);
 				break;
 			case 'leave_room':
 				await this.disconnect(ws);
@@ -357,7 +375,8 @@ export class RoomDO {
 
 		if (incrementRound) room.roundNumber += 1;
 		const psychic = this.nextPsychic(activePlayers);
-		const card = await this.randomCard();
+		const baseCard = await this.randomCard();
+		const card = this.applySettingsToCard(baseCard);
 		room.psychicIndex = activePlayers.findIndex((player) => player.id === psychic.id);
 		room.psychicHistory = [
 			...room.psychicHistory.filter((id) => activePlayers.some((player) => player.id === id)),
@@ -423,6 +442,16 @@ export class RoomDO {
 		}
 
 		return { cardId: card.id, left: card.left_label, right: card.right_label };
+	}
+
+	private applySettingsToCard(card: SpectrumCard): SpectrumCard {
+		const room = this.requireRoom();
+		const { customLeftLabel, customRightLabel } = room.settings;
+		if (!customLeftLabel && !customRightLabel) return card;
+		const left = customLeftLabel ?? card.left;
+		const right = customRightLabel ?? card.right;
+		const cardId = customLeftLabel && customRightLabel ? `custom-${room.id}` : card.cardId;
+		return { cardId, left, right };
 	}
 
 	private async submitClue(ws: WebSocket, clue: string) {
@@ -570,6 +599,32 @@ export class RoomDO {
 		await this.beginRound(true);
 	}
 
+	private async updateSettings(ws: WebSocket, input: RoomSettingsInput) {
+		this.assertHost(ws);
+		const room = this.requireRoom();
+		const left = normalizeSetting(input?.customLeftLabel, 40);
+		const right = normalizeSetting(input?.customRightLabel, 40);
+		const prompt = normalizeSetting(input?.customPrompt, 200);
+
+		room.settings = {
+			customLeftLabel: left,
+			customRightLabel: right,
+			customPrompt: prompt
+		};
+		room.updatedAt = new Date().toISOString();
+
+		if (room.spectrum && (left || right)) {
+			room.spectrum = {
+				...room.spectrum,
+				left: left ?? room.spectrum.left,
+				right: right ?? room.spectrum.right
+			};
+		}
+
+		this.broadcast({ type: 'settings_updated', settings: room.settings });
+		this.broadcastSnapshots();
+	}
+
 	private scheduleScoring() {
 		if (this.scoringTimer) clearTimeout(this.scoringTimer);
 		this.broadcast({ type: 'round_ended', nextRoundInMs: 3000 });
@@ -671,6 +726,7 @@ export class RoomDO {
 			scores: [...room.scores.entries()].map(([playerId, points]) => ({ playerId, points })),
 			lastRoundPoints: room.lastRoundPoints,
 			lastDistance: room.lastDistance,
+			settings: room.settings,
 			createdAt: room.createdAt,
 			updatedAt: room.updatedAt
 		};

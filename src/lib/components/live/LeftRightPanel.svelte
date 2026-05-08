@@ -15,6 +15,7 @@
 <SpectrumBars
 	leftLabel={room.spectrum?.left ?? ''}
 	rightLabel={room.spectrum?.right ?? ''}
+	prompt={room.settings?.customPrompt ?? null}
 	mode="spectator"
 	guessValue={room.lockedGuess ?? room.guessValue ?? 50}
 	locked

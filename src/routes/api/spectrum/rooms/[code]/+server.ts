@@ -91,6 +91,11 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 		})),
 		lastRoundPoints: [],
 		lastDistance: null,
+		settings: {
+			customLeftLabel: null,
+			customRightLabel: null,
+			customPrompt: null
+		},
 		createdAt: room.created_at,
 		updatedAt: room.updated_at
 	};

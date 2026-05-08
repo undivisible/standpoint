@@ -6,6 +6,7 @@ export type LiveClientMessage =
 	| { type: 'lock_guess' }
 	| { type: 'submit_left_right'; direction: 'left' | 'right' }
 	| { type: 'next_round' }
+	| { type: 'update_settings'; settings: RoomSettingsInput }
 	| { type: 'leave_room' };
 
 export type LiveServerMessage =
@@ -20,6 +21,7 @@ export type LiveServerMessage =
 	| { type: 'reveal_started'; targetValue: number }
 	| { type: 'score_updated'; scores: ScoreEntry[] }
 	| { type: 'round_ended'; nextRoundInMs: number }
+	| { type: 'settings_updated'; settings: RoomSettings }
 	| { type: 'error'; message: string };
 
 export type LiveMessageType = LiveServerMessage['type'];
@@ -53,6 +55,18 @@ export type SpectrumCard = {
 	cardId: string;
 };
 
+export type RoomSettings = {
+	customLeftLabel: string | null;
+	customRightLabel: string | null;
+	customPrompt: string | null;
+};
+
+export type RoomSettingsInput = {
+	customLeftLabel?: string | null;
+	customRightLabel?: string | null;
+	customPrompt?: string | null;
+};
+
 export type ScoreEntry = {
 	playerId: string;
 	points: number;
@@ -82,6 +96,7 @@ export type PublicRoomState = {
 	scores: ScoreEntry[];
 	lastRoundPoints: ScoreEntry[];
 	lastDistance: number | null;
+	settings: RoomSettings;
 	createdAt: string;
 	updatedAt: string;
 };

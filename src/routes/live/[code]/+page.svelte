@@ -152,6 +152,7 @@
 			{currentPlayerId}
 			on:start={() => client?.startGame()}
 			on:leave={leave}
+			on:settings={(event) => client?.updateSettings(event.detail)}
 		/>
 	{:else if roomState.phase === 'psychic_clue'}
 		<PsychicPanel

@@ -1,4 +1,9 @@
-import type { LiveClientMessage, LiveMessageType, LiveServerMessage } from './types';
+import type {
+	LiveClientMessage,
+	LiveMessageType,
+	LiveServerMessage,
+	RoomSettingsInput
+} from './types';
 
 type Listener<T extends LiveMessageType> = (
 	message: Extract<LiveServerMessage, { type: T }>
@@ -70,6 +75,10 @@ export class LiveWSClient {
 
 	nextRound() {
 		this.send({ type: 'next_round' });
+	}
+
+	updateSettings(settings: RoomSettingsInput) {
+		this.send({ type: 'update_settings', settings });
 	}
 
 	leaveRoom() {

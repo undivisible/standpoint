@@ -26,6 +26,7 @@
 <SpectrumBars
 	leftLabel={room.spectrum?.left ?? ''}
 	rightLabel={room.spectrum?.right ?? ''}
+	prompt={room.settings?.customPrompt ?? null}
 	mode={isPsychic ? 'psychic' : 'spectator'}
 	targetValue={isPsychic ? room.targetValue : null}
 	disabled
