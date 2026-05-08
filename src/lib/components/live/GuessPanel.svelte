@@ -18,13 +18,16 @@
 	$: isPsychic = room.psychicId === currentPlayerId;
 	$: me = room.players.find((player) => player.id === currentPlayerId);
 	$: psychicPlayer = room.players.find((player) => player.id === room.psychicId);
+	$: duel = room.twoPlayerDuel === true;
 	$: canGuess =
 		!isPsychic &&
-		me?.team !== undefined &&
-		me?.team !== null &&
-		psychicPlayer?.team !== undefined &&
-		psychicPlayer?.team !== null &&
-		me.team === psychicPlayer.team;
+		(duel
+			? Boolean(currentPlayerId && currentPlayerId !== room.psychicId)
+			: me?.team !== undefined &&
+				me?.team !== null &&
+				psychicPlayer?.team !== undefined &&
+				psychicPlayer?.team !== null &&
+				me.team === psychicPlayer.team);
 	$: locked = room.lockedGuess !== null;
 	$: if (room.guessValue !== null) guessValue = room.guessValue;
 
@@ -75,7 +78,11 @@
 	<h1 class="mt-2 text-3xl font-black text-[var(--text)]">{room.clue}</h1>
 	<p class="mt-2 text-[var(--text-secondary)]">
 		{#if isPsychic}
-			Watch your team place the guess.
+			{#if duel}
+				The other player will place the dial guess.
+			{:else}
+				Watch your team place the guess.
+			{/if}
 		{:else if canGuess}
 			Tap or drag the spectrum to guess between {room.spectrum?.left} and {room.spectrum?.right}.
 		{:else}

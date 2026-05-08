@@ -41,6 +41,8 @@ type RoomState = {
 	lastDistance: number | null;
 	settings: RoomSettings;
 	currentRoundId?: string;
+	/** Exactly two connected players: psychic alternates each round, the other always guesses. */
+	twoPlayerDuel: boolean;
 	createdAt: string;
 	updatedAt: string;
 };
@@ -293,7 +295,8 @@ export class RoomDO {
 			},
 			currentRoundId: round?.id,
 			createdAt: room.created_at,
-			updatedAt: room.updated_at
+			updatedAt: room.updated_at,
+			twoPlayerDuel: false
 		};
 		if (activePhase && !round) await this.persistRoomStatus();
 		if (
@@ -426,10 +429,15 @@ export class RoomDO {
 	private async startGame(ws: WebSocket) {
 		this.assertHost(ws);
 		const room = this.requireRoom();
+		const connected = room.players.filter((player) => player.connected);
+		if (connected.length < 2) {
+			throw new Error('At least two connected players are required.');
+		}
 		const teamA = room.players.filter((player) => player.connected && player.team === 0);
 		const teamB = room.players.filter((player) => player.connected && player.team === 1);
-		if (teamA.length < 1 || teamB.length < 1) {
-			throw new Error('Each team needs at least one connected player.');
+		const duel = connected.length === 2;
+		if (!duel && (teamA.length < 1 || teamB.length < 1)) {
+			throw new Error('Each team needs at least one connected player (or play with exactly two people).');
 		}
 		room.teamScores = { 0: 0, 1: 0 };
 		room.winningTeam = null;
@@ -450,33 +458,62 @@ export class RoomDO {
 
 	private async beginRound(incrementRound: boolean) {
 		const room = this.requireRoom();
-		const teamA = room.players.filter((player) => player.connected && player.team === 0);
-		const teamB = room.players.filter((player) => player.connected && player.team === 1);
-		if (teamA.length < 1 || teamB.length < 1) {
+		const connected = room.players
+			.filter((player) => player.connected)
+			.sort((a, b) => a.joinOrder - b.joinOrder);
+		if (connected.length < 2) {
 			room.phase = 'lobby';
+			room.twoPlayerDuel = false;
 			this.broadcastSnapshots();
 			return;
 		}
 
 		if (incrementRound) room.roundNumber += 1;
-		const activeTeam: 0 | 1 = (((room.roundNumber - 1) % 2) as 0 | 1);
-		room.activeTeam = activeTeam;
-		const eligiblePsychics = activeTeam === 0 ? teamA : teamB;
-		if (eligiblePsychics.length === 0) {
-			room.phase = 'lobby';
-			this.broadcastSnapshots();
-			return;
+
+		const duel = connected.length === 2;
+		room.twoPlayerDuel = duel;
+
+		let psychic: Player;
+		if (duel) {
+			psychic = connected[(room.roundNumber - 1) % 2]!;
+			room.activeTeam = (psychic.team ?? 0) as 0 | 1;
+			room.psychicIndex = connected.findIndex((player) => player.id === psychic.id);
+			room.psychicHistory = [
+				...room.psychicHistory.filter((id) =>
+					room.players.some((player) => player.id === id && player.connected)
+				),
+				psychic.id
+			];
+		} else {
+			const teamA = room.players.filter((player) => player.connected && player.team === 0);
+			const teamB = room.players.filter((player) => player.connected && player.team === 1);
+			if (teamA.length < 1 || teamB.length < 1) {
+				room.phase = 'lobby';
+				room.twoPlayerDuel = false;
+				this.broadcastSnapshots();
+				return;
+			}
+			const activeTeam: 0 | 1 = (((room.roundNumber - 1) % 2) as 0 | 1);
+			room.activeTeam = activeTeam;
+			const eligiblePsychics = activeTeam === 0 ? teamA : teamB;
+			if (eligiblePsychics.length === 0) {
+				room.phase = 'lobby';
+				room.twoPlayerDuel = false;
+				this.broadcastSnapshots();
+				return;
+			}
+			psychic = this.nextPsychic(eligiblePsychics);
+			room.psychicIndex = eligiblePsychics.findIndex((player) => player.id === psychic.id);
+			room.psychicHistory = [
+				...room.psychicHistory.filter((id) =>
+					room.players.some((player) => player.id === id && player.connected)
+				),
+				psychic.id
+			];
 		}
-		const psychic = this.nextPsychic(eligiblePsychics);
+
 		const baseCard = await this.randomCard();
 		const card = this.applySettingsToCard(baseCard);
-		room.psychicIndex = eligiblePsychics.findIndex((player) => player.id === psychic.id);
-		room.psychicHistory = [
-			...room.psychicHistory.filter((id) =>
-				room.players.some((player) => player.id === id && player.connected)
-			),
-			psychic.id
-		];
 		room.spectrum = card;
 		room.targetValue = Math.round(Math.random() * 100);
 		room.clue = null;
@@ -578,9 +615,18 @@ export class RoomDO {
 		const playerId = this.requirePlayer(ws);
 		const psychic = this.currentPsychic();
 		const player = room.players.find((candidate) => candidate.id === playerId);
+		const connected = room.players.filter((p) => p.connected);
+		const duel = connected.length === 2;
 		if (room.phase !== 'guessing') throw new Error('Guessing is not open.');
 		if (playerId === psychic?.id) throw new Error('Psychic cannot guess.');
-		if (player?.team !== psychic?.team) throw new Error('Only the psychic team can guess.');
+		if (duel) {
+			const others = connected.filter((p) => p.id !== psychic?.id);
+			if (others.length !== 1 || others[0]!.id !== playerId) {
+				throw new Error('Only the other player can place the guess.');
+			}
+		} else if (player?.team !== psychic?.team) {
+			throw new Error('Only the psychic team can guess.');
+		}
 		if (!this.allow(this.guessLimits, playerId, 240))
 			throw new Error('Too many guess updates. Slow down.');
 		if (!Number.isFinite(value) || value < 0 || value > 100)
@@ -598,7 +644,17 @@ export class RoomDO {
 		const playerId = this.requirePlayer(ws);
 		const player = room.players.find((candidate) => candidate.id === playerId);
 		const psychic = this.currentPsychic();
+		const connected = room.players.filter((p) => p.connected);
+		const duel = connected.length === 2;
 		if (playerId === psychic?.id) throw new Error('Psychic cannot lock the guess.');
+		if (duel) {
+			const others = connected.filter((p) => p.id !== psychic?.id);
+			if (others.length !== 1 || others[0]!.id !== playerId) {
+				throw new Error('Only the other player can lock the guess.');
+			}
+		} else if (player?.team !== psychic?.team) {
+			throw new Error('Only the psychic team can lock the guess.');
+		}
 		if (room.phase !== 'guessing') throw new Error('There is no active guess to lock.');
 		if (room.guessValue === null || !room.guessPlayerId)
 			throw new Error('A non-psychic player must submit a guess first.');
@@ -720,6 +776,7 @@ export class RoomDO {
 		room.targetValue = null;
 		room.clue = null;
 		room.phase = 'lobby';
+		room.twoPlayerDuel = false;
 		await this.persistTeamScores();
 		await this.persistRoomStatus();
 		this.broadcastSnapshots();
@@ -880,6 +937,7 @@ export class RoomDO {
 			lastRoundResult: room.lastRoundResult,
 			lastDistance: room.lastDistance,
 			settings: room.settings,
+			twoPlayerDuel: room.twoPlayerDuel,
 			winThreshold: WIN_THRESHOLD,
 			createdAt: room.createdAt,
 			updatedAt: room.updatedAt

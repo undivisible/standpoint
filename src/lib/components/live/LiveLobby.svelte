@@ -23,7 +23,10 @@
 	$: connectedTeamB = room.players.filter(
 		(player) => player.connected && player.team === 1
 	).length;
-	$: canStart = connectedTeamA >= 1 && connectedTeamB >= 1;
+	$: connectedCount = room.players.filter((player) => player.connected).length;
+	$: canStart =
+		connectedCount >= 2 &&
+		(connectedCount === 2 || (connectedTeamA >= 1 && connectedTeamB >= 1));
 </script>
 
 <section
@@ -33,10 +36,12 @@
 		<p class="text-sm tracking-[0.28em] text-[rgb(var(--primary))] uppercase">Spectrum</p>
 		<h1 class="mt-4 font-sans text-5xl font-black text-[var(--text)] md:text-7xl">Lobby</h1>
 		<p class="mt-4 max-w-2xl text-lg text-[var(--text-secondary)]">
-			Two teams take turns. Each round the active team's psychic sees the hidden target and gives a
-			clue; a teammate places the dial guess. The other team picks left or right of that guess for a
-			catch-up point. Psychic rotates within the active team. First team to {room.winThreshold} wins.
-			The host is on a team like everyone else and can start the next round after a reveal.
+			With exactly two people, you play head-to-head: the psychic alternates each round and the
+			other player always places the dial guess, then tries left/right for a catch-up point. With
+			three or more, two teams take turns: the active team's psychic gives a clue, a teammate places
+			the guess, and the other team picks left or right. Psychic rotates within the active team.
+			First team to {room.winThreshold} wins. The host is on a team and can start the next round
+			after a reveal.
 		</p>
 		<div class="mt-8 flex flex-wrap gap-3">
 			<button
@@ -59,8 +64,8 @@
 			<p class="mt-4 text-sm text-[var(--text-secondary)]">Waiting for the host to start.</p>
 		{:else if !canStart}
 			<p class="mt-4 text-sm text-[var(--text-secondary)]">
-				Each team needs at least one connected player (join order alternates Red / Blue). Team Red
-				{connectedTeamA}, Team Blue {connectedTeamB}.
+				Need two connected players for a head-to-head game, or at least one on each team for a
+				group game. Team Red {connectedTeamA}, Team Blue {connectedTeamB} ({connectedCount} connected).
 			</p>
 		{/if}
 	</div>

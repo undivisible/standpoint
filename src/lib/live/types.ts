@@ -110,6 +110,8 @@ export type PublicRoomState = {
 	lastRoundResult: RoundResult | null;
 	lastDistance: number | null;
 	settings: RoomSettings;
+	/** True when exactly two players are connected: psychic alternates, the other guesses. */
+	twoPlayerDuel?: boolean;
 	winThreshold: number;
 	createdAt: string;
 	updatedAt: string;

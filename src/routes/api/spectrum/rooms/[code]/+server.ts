@@ -91,6 +91,7 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 			customPrompt: null
 		},
 		winThreshold: 10,
+		twoPlayerDuel: false,
 		createdAt: room.created_at,
 		updatedAt: room.updated_at
 	};
