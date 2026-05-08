@@ -22,7 +22,7 @@
 		<div
 			class="flex flex-col justify-center border-r border-white/20 bg-white/10 p-8 backdrop-blur"
 		>
-			<h1 class="mb-4 text-4xl font-bold text-white">This is Standpoint v0.7.0-beta</h1>
+			<h1 class="mb-4 text-4xl font-bold text-white">This is Standpoint v0.8.0-beta</h1>
 			<p class="text-lg text-white/70">
 				Standpoint is an opinion-based platform, where you can share your opinions on various
 				topics. Engage in discussions, vote on public polls, and explore tier lists created by the
@@ -78,7 +78,7 @@
 			class="flex flex-col items-center justify-center p-6 text-center transition-opacity hover:opacity-80"
 			style="background-color: #05ffac;"
 		>
-			<div class="mb-2 text-xl font-semibold text-black">Python</div>
+			<div class="mb-2 text-xl font-semibold text-black">Typescript</div>
 			<div class="text-black/70">Backend</div>
 		</div>
 
