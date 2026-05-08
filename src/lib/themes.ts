@@ -461,13 +461,24 @@ function applyThemeToElements(theme: Theme) {
 			border-color: rgb(${theme.colors.primary}) !important;
 		}
 
-		/* Input/Select overrides */
-		input:not([type="checkbox"]):not([type="radio"]),
-		select,
-		textarea {
+		/* Input/Select overrides
+		   Skip inputs that are intentionally transparent (e.g. the header
+		   search bar and the spectrum/tierlist create overlays) so they keep
+		   matching their parent background instead of jumping to the
+		   surface color. */
+		input:not([type="checkbox"]):not([type="radio"]):not(.bg-transparent),
+		select:not(.bg-transparent),
+		textarea:not(.bg-transparent) {
 			background-color: ${theme.colors.surface} !important;
 			color: ${theme.colors.text} !important;
 			border-color: ${theme.colors.border} !important;
+		}
+
+		.search-shell input,
+		.spectrum-lobby input,
+		.tierlist-create input {
+			background-color: transparent !important;
+			border-color: transparent !important;
 		}
 
 		input::placeholder,

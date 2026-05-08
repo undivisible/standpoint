@@ -12,6 +12,7 @@
 	import LoadingIndicator from '../../components/loading-indicator.svelte';
 	import UploadProgress from '../../components/upload-progress.svelte';
 	import { currentTheme, themes, setThemeAccent } from '$lib/themes';
+	import { get } from 'svelte/store';
 
 	// Preset accent swatches available per-theme
 	const accentPresets = ['#FF5705', '#FF356B', '#C0FF05', '#05FFAC', '#00FFFF', '#B400FF'];
@@ -223,8 +224,12 @@
 			showLocation: userProfile.showLocation ?? false
 		};
 
+		// Prefer the locally-applied theme (kept in sync by currentTheme/localStorage)
+		// over the server-side value so that selections persist across navigation
+		// even before they're saved to the profile.
+		const activeThemeId = get(currentTheme).id;
 		themeForm = {
-			theme: userProfile.theme || 'light',
+			theme: activeThemeId || userProfile.theme || 'light',
 			colorScheme: userProfile.colorScheme || 'orange',
 			fontSize: userProfile.fontSize || 'medium'
 		};
@@ -458,7 +463,9 @@
 			<!-- Sidebar Navigation -->
 			<div class="flex gap-5">
 				<div class="w-64 flex-shrink-0">
-					<nav class="relative space-y-1 overflow-hidden p-1">
+					<nav
+						class="relative space-y-1 overflow-hidden border border-gray-700 bg-gray-800/50 p-1 backdrop-blur-sm"
+					>
 						<div
 							class="absolute right-1 left-1 h-10 bg-[rgb(var(--primary))]/80 transition-all duration-400 ease-out"
 							style="top:{(() => {
@@ -901,10 +908,17 @@
 										{#each themes as theme (theme.id)}
 											<button
 												type="button"
-												on:click={() => {
-													themeForm.theme = theme.id;
-													currentTheme.setTheme(theme.id);
-												}}
+										on:click={() => {
+												themeForm.theme = theme.id;
+												currentTheme.setTheme(theme.id);
+												// Persist to the user profile so the choice survives a
+												// fresh load (where SSR data wins over localStorage).
+												if ($currentUser) {
+													updateUserProfile($currentUser.uid, { theme: theme.id }).catch(
+														(err) => console.warn('Failed to persist theme', err)
+													);
+												}
+											}}
 												class="group relative overflow-hidden border-2 p-4 text-left transition-all hover:scale-105 {themeForm.theme ===
 												theme.id
 													? 'border-[rgb(var(--primary))] shadow-lg shadow-[rgb(var(--primary))]/30'
