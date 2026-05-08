@@ -11,6 +11,7 @@ import type {
 
 type Env = {
 	DB: D1Database;
+	ROOM_IDLE_HOURS?: string;
 };
 
 type RoomState = {
@@ -104,7 +105,12 @@ export class RoomDO {
 	async fetch(request: Request) {
 		const url = new URL(request.url);
 		const code = url.pathname.split('/').filter(Boolean).at(-2)?.toUpperCase() ?? '';
-		await this.ensureRoom(code);
+		try {
+			await this.ensureRoom(code);
+		} catch (err) {
+			if (err instanceof Response) return err;
+			throw err;
+		}
 
 		if (url.pathname.endsWith('/ws')) {
 			const pair = new WebSocketPair();
@@ -114,6 +120,43 @@ export class RoomDO {
 		}
 
 		return Response.json(this.publicSnapshot());
+	}
+
+	private idleCleanupMs() {
+		const raw = this.env.ROOM_IDLE_HOURS;
+		const h = Number(raw);
+		const hours = Number.isFinite(h) && h > 0 ? h : 24;
+		return Math.floor(hours * 3600000);
+	}
+
+	private async scheduleIdleCleanup() {
+		await this.state.storage.setAlarm(Date.now() + this.idleCleanupMs());
+	}
+
+	private async cancelIdleCleanup() {
+		await this.state.storage.deleteAlarm().catch(() => {});
+	}
+
+	async alarm() {
+		if (this.wsSet.size > 0) return;
+		const room = this.room;
+		if (!room) return;
+		const id = room.id;
+		if (this.scoringTimer) {
+			clearTimeout(this.scoringTimer);
+			this.scoringTimer = null;
+		}
+		try {
+			await this.env.DB.prepare('DELETE FROM standpoint_rounds WHERE room_id = ?').bind(id).run();
+			await this.env.DB.prepare('DELETE FROM standpoint_room_scores WHERE room_id = ?').bind(id).run();
+			await this.env.DB.prepare('DELETE FROM standpoint_room_players WHERE room_id = ?').bind(id).run();
+			await this.env.DB.prepare('DELETE FROM standpoint_rooms WHERE id = ?').bind(id).run();
+		} catch {
+			/* best-effort */
+		}
+		this.room = null;
+		this.clueLimits.clear();
+		this.guessLimits.clear();
 	}
 
 	private async ensureRoom(code: string) {
@@ -308,6 +351,7 @@ export class RoomDO {
 		if (existingSocket) {
 			const existingPlayer = room.players.find((candidate) => candidate.id === existingSocket);
 			if (existingPlayer) {
+				await this.cancelIdleCleanup();
 				this.send(ws, { type: 'room_snapshot', data: this.publicSnapshot(existingPlayer.id) });
 				return;
 			}
@@ -344,6 +388,7 @@ export class RoomDO {
 
 		if (!room.hostPlayerId && player.userId === room.hostUserId) room.hostPlayerId = player.id;
 		this.playerSockets.set(ws, player.id);
+		await this.cancelIdleCleanup();
 		this.send(ws, { type: 'room_snapshot', data: this.publicSnapshot(player.id) });
 		this.broadcast({
 			type: 'player_joined',
@@ -667,6 +712,10 @@ export class RoomDO {
 			await this.beginRound(false);
 		} else {
 			this.broadcastSnapshots();
+		}
+
+		if (this.room && this.wsSet.size === 0) {
+			void this.scheduleIdleCleanup().catch(() => {});
 		}
 	}
 

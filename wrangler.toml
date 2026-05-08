@@ -3,6 +3,9 @@ main = ".svelte-kit/cloudflare/_worker.js"
 compatibility_date = "2026-05-06"
 compatibility_flags = ["nodejs_compat"]
 
+[vars]
+ROOM_IDLE_HOURS = "24"
+
 [assets]
 directory = ".svelte-kit/cloudflare"
 binding = "ASSETS"

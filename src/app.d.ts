@@ -14,7 +14,13 @@ declare global {
 		prepare(query: string): D1PreparedStatement;
 		exec(query: string): Promise<D1ExecResult>;
 	}
-	type DurableObjectState = object;
+	interface DurableObjectStorage {
+		setAlarm(scheduledTime: number | Date): Promise<void>;
+		deleteAlarm(): Promise<void>;
+	}
+	interface DurableObjectState {
+		storage: DurableObjectStorage;
+	}
 	interface DurableObjectStub {
 		fetch(request: Request): Promise<Response>;
 	}
@@ -58,6 +64,7 @@ declare global {
 				GOOGLE_CLIENT_ID?: string;
 				GOOGLE_CLIENT_SECRET?: string;
 				AUTH_COOKIE_SECRET?: string;
+				ROOM_IDLE_HOURS?: string;
 			};
 		}
 	}

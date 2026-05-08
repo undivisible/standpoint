@@ -12,11 +12,25 @@
 	export let disabled = false;
 	export let showScoringBands = false;
 
-	const scoringZones = [
-		{ radius: 14, points: 2, color: '#facc15' },
-		{ radius: 8, points: 3, color: '#3b82f6' },
-		{ radius: 4, points: 4, color: '#10b981' }
-	];
+	/** Four equal-width rings from the target outward (inside → outside: 4, 3, 2, 0 pts). */
+	const RING_SLICES = 4;
+	const OUTER_RADIUS = 16;
+	const SLICE = OUTER_RADIUS / RING_SLICES;
+
+	const RING_META = [
+		{ inner: 3 * SLICE, outer: 4 * SLICE, label: '0', color: '#57534e' },
+		{ inner: 2 * SLICE, outer: 3 * SLICE, label: '2', color: '#facc15' },
+		{ inner: 1 * SLICE, outer: 2 * SLICE, label: '3', color: '#3b82f6' },
+		{ inner: 0, outer: 1 * SLICE, label: '4', color: '#10b981' }
+	] as const;
+
+	type RingChunk = {
+		key: string;
+		label: string;
+		color: string;
+		z: number;
+		style: string;
+	};
 
 	const dispatch = createEventDispatcher<{
 		guessChange: number;
@@ -70,12 +84,57 @@
 		dispatch('guessLock', value);
 	}
 
-	function bandStyle(radius: number) {
-		const center = targetValue ?? 50;
-		const left = clamp(center - radius);
-		const width = clamp(center + radius) - left;
-		return `--band-left:${left}%; --band-width:${width}%;`;
+	function ringChunkStyle(center: number, inner: number, outer: number, side: 'left' | 'right' | 'center'): string {
+		const c = clamp(center);
+		if (side === 'center') {
+			const left = clamp(c - outer);
+			const right = clamp(c + outer);
+			return `--band-left:${left}%; --band-width:${Math.max(0, right - left)}%;`;
+		}
+		if (side === 'left') {
+			const left = clamp(c - outer);
+			const right = clamp(c - inner);
+			return `--band-left:${left}%; --band-width:${Math.max(0, right - left)}%;`;
+		}
+		const left = clamp(c + inner);
+		const right = clamp(c + outer);
+		return `--band-left:${left}%; --band-width:${Math.max(0, right - left)}%;`;
 	}
+
+	function buildScoringChunks(center: number): RingChunk[] {
+		const c = clamp(center);
+		const out: RingChunk[] = [];
+		let z = 20;
+		for (const ring of RING_META) {
+			if (ring.inner === 0) {
+				out.push({
+					key: `${ring.label}-mid`,
+					label: ring.label,
+					color: ring.color,
+					z: z++,
+					style: ringChunkStyle(c, 0, ring.outer, 'center')
+				});
+			} else {
+				out.push({
+					key: `${ring.label}-L`,
+					label: ring.label,
+					color: ring.color,
+					z: z++,
+					style: ringChunkStyle(c, ring.inner, ring.outer, 'left')
+				});
+				out.push({
+					key: `${ring.label}-R`,
+					label: ring.label,
+					color: ring.color,
+					z: z++,
+					style: ringChunkStyle(c, ring.inner, ring.outer, 'right')
+				});
+			}
+		}
+		return out;
+	}
+
+	$: scoringChunks = showZones ? buildScoringChunks(targetValue ?? 50) : [];
 </script>
 
 <section
@@ -91,15 +150,12 @@
 	aria-label="Spectrum guess"
 >
 	{#if showZones}
-		{#each scoringZones as zone (zone.points)}
+		{#each scoringChunks as chunk (chunk.key)}
 			<div
 				class="zone"
-				class:zone-2={zone.points === 2}
-				class:zone-3={zone.points === 3}
-				class:zone-4={zone.points === 4}
-				style={`${bandStyle(zone.radius)} --zone-color:${zone.color};`}
+				style={`${chunk.style} --zone-color:${chunk.color}; z-index:${chunk.z};`}
 			>
-				<span class="zone-label">{zone.points}</span>
+				<span class="zone-label">{chunk.label}</span>
 			</div>
 		{/each}
 	{/if}
@@ -173,29 +229,19 @@
 			inset -1px 0 0 rgba(0, 0, 0, 0.45);
 	}
 
-	.zone-2 {
-		z-index: 11;
-	}
-	.zone-3 {
-		z-index: 12;
-	}
-	.zone-4 {
-		z-index: 13;
-	}
-
 	.zone-label {
 		position: relative;
 		display: inline-flex;
-		min-width: 2.5rem;
+		min-width: 2.25rem;
 		justify-content: center;
 		border-radius: 9999px;
 		background: rgba(0, 0, 0, 0.55);
 		border: 1px solid rgba(255, 255, 255, 0.35);
-		padding: 0.25rem 0.75rem;
+		padding: 0.25rem 0.65rem;
 		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 		font-size: 0.75rem;
 		font-weight: 700;
-		letter-spacing: 0.18em;
+		letter-spacing: 0.12em;
 		color: white;
 		text-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
 	}
@@ -212,8 +258,6 @@
 			width: auto;
 			bottom: var(--band-left);
 			height: var(--band-width);
-			justify-content: center;
-			align-items: center;
 			background: linear-gradient(
 				90deg,
 				color-mix(in srgb, var(--zone-color) 70%, transparent) 0%,
