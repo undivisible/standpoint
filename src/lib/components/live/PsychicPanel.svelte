@@ -13,37 +13,59 @@
 
 	let clue = '';
 	let clueError = '';
-	let axisError = '';
 	let editingSide: 'left' | 'right' | null = null;
-	let draftAxis = '';
+	let leftDraft = '';
+	let rightDraft = '';
 
 	$: isPsychic = room.psychicId === currentPlayerId;
 	$: canSubmit = isPsychic && clue.trim().length > 0 && !/\d|%|percent/i.test(clue.trim());
+	$: if (editingSide !== 'left') leftDraft = room.spectrum?.left ?? '';
+	$: if (editingSide !== 'right') rightDraft = room.spectrum?.right ?? '';
 
-	function openAxisEdit(side: 'left' | 'right') {
+	function startEdit(side: 'left' | 'right') {
 		editingSide = side;
-		draftAxis = (side === 'left' ? room.spectrum?.left : room.spectrum?.right) ?? '';
-		axisError = '';
+		if (side === 'left') leftDraft = room.spectrum?.left ?? '';
+		else rightDraft = room.spectrum?.right ?? '';
+		queueMicrotask(() => {
+			const el = document.getElementById(
+				side === 'left' ? 'panel-left-input' : 'panel-right-input'
+			);
+			if (el instanceof HTMLInputElement) {
+				el.focus();
+				el.select();
+			}
+		});
 	}
 
-	function cancelAxisEdit() {
+	function commitEdit(side: 'left' | 'right') {
+		const draft = side === 'left' ? leftDraft : rightDraft;
+		const trimmed = draft.trim().slice(0, 40);
+		const original = side === 'left' ? room.spectrum?.left ?? '' : room.spectrum?.right ?? '';
 		editingSide = null;
-		axisError = '';
-	}
-
-	function saveAxis() {
-		if (!editingSide) return;
-		const trimmed = draftAxis.trim();
-		if (!trimmed) {
-			axisError = 'Enter a label or cancel.';
+		if (!trimmed || trimmed === original) {
+			if (side === 'left') leftDraft = original;
+			else rightDraft = original;
 			return;
 		}
 		dispatch(
 			'settings',
-			editingSide === 'left' ? { customLeftLabel: trimmed } : { customRightLabel: trimmed }
+			side === 'left' ? { customLeftLabel: trimmed } : { customRightLabel: trimmed }
 		);
+	}
+
+	function cancelEdit(side: 'left' | 'right') {
+		if (side === 'left') leftDraft = room.spectrum?.left ?? '';
+		else rightDraft = room.spectrum?.right ?? '';
 		editingSide = null;
-		axisError = '';
+	}
+
+	function applyAxisFromBars(detail: { side: 'left' | 'right'; value: string }) {
+		dispatch(
+			'settings',
+			detail.side === 'left'
+				? { customLeftLabel: detail.value }
+				: { customRightLabel: detail.value }
+		);
 	}
 
 	function submit() {
@@ -54,13 +76,7 @@
 		}
 		dispatch('submit', clue.trim());
 	}
-
-	function onWindowKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && editingSide) cancelAxisEdit();
-	}
 </script>
-
-<svelte:window onkeydown={onWindowKeydown} />
 
 <SpectrumBars
 	leftLabel={room.spectrum?.left ?? ''}
@@ -70,60 +86,8 @@
 	targetValue={isPsychic ? room.targetValue : null}
 	axisEditable={isPsychic}
 	disabled
-	on:axisEdit={(e) => openAxisEdit(e.detail)}
+	on:axisChange={(e) => applyAxisFromBars(e.detail)}
 />
-
-{#if editingSide}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-[85] flex items-center justify-center bg-black/75 px-4"
-		role="presentation"
-		onclick={(e) => e.target === e.currentTarget && cancelAxisEdit()}
-	>
-		<div
-			class="w-full max-w-md rounded-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="axis-edit-title"
-			tabindex="-1"
-		>
-			<h2 id="axis-edit-title" class="text-lg font-bold text-[var(--text)]">
-				Rename {editingSide === 'left' ? 'left' : 'right'} end
-			</h2>
-			<p class="mt-1 text-sm text-[var(--text-secondary)]">
-				This updates the spectrum for everyone in the round.
-			</p>
-			<input
-				bind:value={draftAxis}
-				maxlength="40"
-				class="mt-4 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-4 py-3 text-[var(--text)] transition outline-none focus:border-[rgb(var(--primary))]"
-				placeholder={editingSide === 'left' ? 'Left label' : 'Right label'}
-				onkeydown={(e) => {
-					if (e.key === 'Enter') saveAxis();
-				}}
-			/>
-			{#if axisError}
-				<p class="mt-2 text-sm text-red-300">{axisError}</p>
-			{/if}
-			<div class="mt-5 flex justify-end gap-3">
-				<button
-					type="button"
-					class="rounded-md border border-[var(--border)] px-4 py-2 font-semibold text-[var(--text)] transition hover:border-[rgb(var(--primary))]"
-					onclick={cancelAxisEdit}
-				>
-					Cancel
-				</button>
-				<button
-					type="button"
-					class="rounded-md bg-[rgb(var(--primary))] px-4 py-2 font-semibold text-white transition hover:brightness-110"
-					onclick={saveAxis}
-				>
-					Save
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
 
 <div
 	class="fixed inset-x-4 bottom-20 z-[70] mx-auto max-w-2xl rounded-md border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl backdrop-blur"
@@ -131,26 +95,64 @@
 	{#if isPsychic}
 		<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">You are psychic</p>
 		<div class="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-			<button
-				type="button"
-				class="truncate rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-left text-base font-bold text-[var(--text)] transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
-				title="Rename left end"
-				onclick={() => openAxisEdit('left')}
-			>
-				{room.spectrum?.left}
-			</button>
+			{#if editingSide === 'left'}
+				<input
+					id="panel-left-input"
+					bind:value={leftDraft}
+					maxlength="40"
+					class="rounded-md border border-[rgb(var(--primary))] bg-[var(--bg)] px-3 py-2 text-left text-base font-bold text-[var(--text)] outline-none"
+					onblur={() => commitEdit('left')}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							commitEdit('left');
+						} else if (e.key === 'Escape') {
+							e.preventDefault();
+							cancelEdit('left');
+						}
+					}}
+				/>
+			{:else}
+				<button
+					type="button"
+					class="truncate rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-left text-base font-bold text-[var(--text)] transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
+					title="Click to rename"
+					onclick={() => startEdit('left')}
+				>
+					{room.spectrum?.left}
+				</button>
+			{/if}
 			<span class="text-sm text-[var(--text-secondary)]">/</span>
-			<button
-				type="button"
-				class="truncate rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-right text-base font-bold text-[var(--text)] transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
-				title="Rename right end"
-				onclick={() => openAxisEdit('right')}
-			>
-				{room.spectrum?.right}
-			</button>
+			{#if editingSide === 'right'}
+				<input
+					id="panel-right-input"
+					bind:value={rightDraft}
+					maxlength="40"
+					class="rounded-md border border-[rgb(var(--primary))] bg-[var(--bg)] px-3 py-2 text-right text-base font-bold text-[var(--text)] outline-none"
+					onblur={() => commitEdit('right')}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							commitEdit('right');
+						} else if (e.key === 'Escape') {
+							e.preventDefault();
+							cancelEdit('right');
+						}
+					}}
+				/>
+			{:else}
+				<button
+					type="button"
+					class="truncate rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-right text-base font-bold text-[var(--text)] transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
+					title="Click to rename"
+					onclick={() => startEdit('right')}
+				>
+					{room.spectrum?.right}
+				</button>
+			{/if}
 		</div>
 		<p class="mt-2 text-xs text-[var(--text-secondary)]">
-			Tap either label to rename that end of the spectrum.
+			Click either side to rename it (here or above the dial).
 		</p>
 		<textarea
 			bind:value={clue}

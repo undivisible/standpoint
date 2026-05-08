@@ -55,7 +55,6 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 			displayName: player.display_name,
 			joinOrder: player.join_order,
 			connected: Boolean(player.connected),
-			team: (player.join_order % 2) as 0 | 1,
 			isHost
 		};
 	});
@@ -76,22 +75,14 @@ async function roomSnapshot(db: D1Database, code: string): Promise<PublicRoomSta
 		roundNumber: 0,
 		targetValue: null,
 		clue: null,
-		guessValue: null,
-		leftRightGuess: null,
-		leftRightTeam: null,
-		lockedGuess: null,
-		teamScores: { 0: 0, 1: 0 },
-		activeTeam: null,
-		winningTeam: null,
-		lastRoundResult: null,
-		lastDistance: null,
+		guesses: {},
+		scores: [],
+		lastRoundResults: [],
 		settings: {
 			customLeftLabel: null,
 			customRightLabel: null,
 			customPrompt: null
 		},
-		winThreshold: 10,
-		twoPlayerDuel: false,
 		createdAt: room.created_at,
 		updatedAt: room.updated_at
 	};

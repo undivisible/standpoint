@@ -4,23 +4,23 @@ export type LiveClientMessage =
 	| { type: 'submit_clue'; clue: string }
 	| { type: 'update_guess'; value: number }
 	| { type: 'lock_guess' }
-	| { type: 'submit_left_right'; direction: 'left' | 'right' }
 	| { type: 'next_round' }
 	| { type: 'reset_game' }
 	| { type: 'update_settings'; settings: RoomSettingsInput }
-	| { type: 'leave_room' };
+	| { type: 'leave_room' }
+	| { type: 'kick_player'; playerId: string };
 
 export type LiveServerMessage =
 	| { type: 'room_snapshot'; data: PublicRoomState }
 	| { type: 'player_joined'; player: { id: string; displayName: string; isHost: boolean } }
 	| { type: 'player_left'; playerId: string }
+	| { type: 'player_kicked'; playerId: string }
 	| { type: 'round_started'; psychicId: string; spectrum: SpectrumCard }
 	| { type: 'psychic_assigned'; psychicId: string; targetValue: number }
 	| { type: 'clue_submitted'; clue: string }
 	| { type: 'guess_updated'; playerId: string; value: number }
-	| { type: 'guess_locked'; playerId: string; value: number }
 	| { type: 'reveal_started'; targetValue: number }
-	| { type: 'score_updated'; teamScores: TeamScores }
+	| { type: 'score_updated'; scores: ScoreEntry[] }
 	| { type: 'round_ended'; nextRoundInMs: number }
 	| { type: 'settings_updated'; settings: RoomSettings }
 	| { type: 'error'; message: string };
@@ -32,7 +32,6 @@ export type Phase =
 	| 'starting'
 	| 'psychic_clue'
 	| 'guessing'
-	| 'left_right'
 	| 'reveal'
 	| 'scoring'
 	| 'ended';
@@ -45,19 +44,8 @@ export type Player = {
 	displayName: string;
 	joinOrder: number;
 	connected: boolean;
-	team?: 0 | 1 | null;
 	psychicIndex?: number;
 	isHost?: boolean;
-};
-
-export type TeamScores = { 0: number; 1: number };
-
-export type RoundResult = {
-	activeTeam: 0 | 1;
-	activePoints: number;
-	leftRightTeam: 0 | 1 | null;
-	leftRightPoints: number;
-	distance: number;
 };
 
 export type SpectrumCard = {
@@ -83,6 +71,15 @@ export type ScoreEntry = {
 	points: number;
 };
 
+/** One guesser's outcome for the last completed round (reveal UI). */
+export type GuessRoundEntry = {
+	playerId: string;
+	displayName: string;
+	value: number;
+	points: number;
+	distance: number;
+};
+
 export type PublicRoomState = {
 	id: string;
 	code: string;
@@ -99,20 +96,11 @@ export type PublicRoomState = {
 	roundNumber: number;
 	targetValue: number | null;
 	clue: string | null;
-	guessValue: number | null;
-	guessPlayerId?: string;
-	leftRightGuess: 'left' | 'right' | null;
-	leftRightTeam: 0 | 1 | null;
-	lockedGuess: number | null;
-	teamScores: TeamScores;
-	activeTeam: 0 | 1 | null;
-	winningTeam: 0 | 1 | null;
-	lastRoundResult: RoundResult | null;
-	lastDistance: number | null;
+	/** Each guesser's current dial position (0–100) for this round; psychic has no entry. */
+	guesses: Record<string, number>;
+	scores: ScoreEntry[];
+	lastRoundResults: GuessRoundEntry[];
 	settings: RoomSettings;
-	/** True when exactly two players are connected: psychic alternates, the other guesses. */
-	twoPlayerDuel?: boolean;
-	winThreshold: number;
 	createdAt: string;
 	updatedAt: string;
 };

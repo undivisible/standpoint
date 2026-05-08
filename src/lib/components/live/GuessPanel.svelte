@@ -11,52 +11,47 @@
 		lock: void;
 	}>();
 
-	let guessValue = room.guessValue ?? 50;
-	let queuedGuess: number | null = null;
-	let guessTimer: ReturnType<typeof setTimeout> | null = null;
-
 	$: isPsychic = room.psychicId === currentPlayerId;
-	$: me = room.players.find((player) => player.id === currentPlayerId);
-	$: psychicPlayer = room.players.find((player) => player.id === room.psychicId);
-	$: duel = room.twoPlayerDuel === true;
-	$: canGuess =
-		!isPsychic &&
-		(duel
-			? Boolean(currentPlayerId && currentPlayerId !== room.psychicId)
-			: me?.team !== undefined &&
-				me?.team !== null &&
-				psychicPlayer?.team !== undefined &&
-				psychicPlayer?.team !== null &&
-				me.team === psychicPlayer.team);
-	$: locked = room.lockedGuess !== null;
-	$: if (room.guessValue !== null) guessValue = room.guessValue;
+	$: isHost =
+		room.hostPlayerId === currentPlayerId ||
+		room.players.find((player) => player.id === currentPlayerId)?.isHost;
+	$: canGuess = !isPsychic && Boolean(currentPlayerId);
+	$: myCurrentGuess = currentPlayerId ? room.guesses?.[currentPlayerId] : undefined;
 
-	function guess(next: CustomEvent<number>) {
-		guessValue = next.detail;
-		queuedGuess = guessValue;
-		if (guessTimer) return;
-		flushQueuedGuess();
-		guessTimer = setTimeout(() => {
-			guessTimer = null;
-			flushQueuedGuess();
-		}, 150);
+	let localGuess = myCurrentGuess ?? 50;
+	let queued: number | null = null;
+	let timer: ReturnType<typeof setTimeout> | null = null;
+
+	$: if (myCurrentGuess !== undefined && timer === null && queued === null) {
+		localGuess = myCurrentGuess;
 	}
 
-	function flushQueuedGuess() {
-		if (queuedGuess === null) return;
-		guessValue = queuedGuess;
-		queuedGuess = null;
-		dispatch('guess', guessValue);
+	function onChange(event: CustomEvent<number>) {
+		localGuess = event.detail;
+		queued = localGuess;
+		if (timer) return;
+		flush();
+		timer = setTimeout(() => {
+			timer = null;
+			flush();
+		}, 120);
 	}
 
-	function lock() {
-		flushQueuedGuess();
-		dispatch('lock');
+	function flush() {
+		if (queued === null) return;
+		const value = queued;
+		queued = null;
+		dispatch('guess', value);
 	}
 
 	onDestroy(() => {
-		if (guessTimer) clearTimeout(guessTimer);
+		if (timer) clearTimeout(timer);
 	});
+
+	$: guessesPlaced = room.players.filter(
+		(p) => p.connected && p.id !== room.psychicId && room.guesses?.[p.id] !== undefined
+	).length;
+	$: guessesNeeded = room.players.filter((p) => p.connected && p.id !== room.psychicId).length;
 </script>
 
 <SpectrumBars
@@ -64,11 +59,10 @@
 	rightLabel={room.spectrum?.right ?? ''}
 	prompt={room.settings?.customPrompt ?? null}
 	mode={canGuess ? 'guessing' : 'spectator'}
-	bind:value={guessValue}
-	{guessValue}
-	{locked}
+	value={localGuess}
+	guessValue={localGuess}
 	disabled={!canGuess}
-	on:guessChange={guess}
+	on:guessChange={onChange}
 />
 
 <div
@@ -76,27 +70,53 @@
 >
 	<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">Clue</p>
 	<h1 class="mt-2 text-3xl font-black text-[var(--text)]">{room.clue}</h1>
-	<p class="mt-2 text-[var(--text-secondary)]">
+
+	{#if room.players.length > 0}
+		<div class="mt-3 flex flex-wrap justify-center gap-1.5">
+			{#each room.players.filter((p) => p.connected && p.id !== room.psychicId) as player (player.id)}
+				{@const has = room.guesses?.[player.id] !== undefined}
+				<span
+					class="rounded-full border px-2.5 py-1 text-xs"
+					class:border-[var(--border)]={!has}
+					class:text-[var(--text-secondary)]={!has}
+					class:border-[rgb(var(--primary))]={has}
+					class:text-[rgb(var(--primary))]={has}
+					title={has ? `Guessed ${room.guesses?.[player.id]}` : 'Hasn’t guessed yet'}
+				>
+					{player.displayName}{has ? ' ✓' : ''}
+				</span>
+			{/each}
+		</div>
+		<p class="mt-2 text-xs text-[var(--text-secondary)]">
+			{guessesPlaced}/{guessesNeeded} guesses in
+		</p>
+	{/if}
+
+	<p class="mt-3 text-[var(--text-secondary)]">
 		{#if isPsychic}
-			{#if duel}
-				The other player will place the dial guess.
-			{:else}
-				Watch your team place the guess.
-			{/if}
+			Watch everyone place their guesses.
 		{:else if canGuess}
-			Tap or drag the spectrum to guess between {room.spectrum?.left} and {room.spectrum?.right}.
-		{:else}
-			Your teammate is placing the guess for your team.
+			Tap or drag the spectrum to place your own guess between {room.spectrum?.left} and {room.spectrum?.right}.
 		{/if}
 	</p>
-	{#if canGuess}
+
+	{#if isHost}
 		<button
 			type="button"
 			class="mt-5 rounded-md bg-[rgb(var(--primary))] px-6 py-3 font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
-			disabled={room.guessValue === null || locked}
-			onclick={lock}
+			disabled={guessesPlaced === 0}
+			onclick={() => dispatch('lock')}
 		>
-			{locked ? 'Locked' : 'Lock In Guess'}
+			Lock Guesses & Reveal
 		</button>
+		{#if guessesPlaced === 0}
+			<p class="mt-2 text-xs text-[var(--text-secondary)]">
+				At least one guess is needed before reveal.
+			</p>
+		{/if}
+	{:else}
+		<p class="mt-4 text-xs text-[var(--text-secondary)]">
+			The host will lock guesses when everyone is ready.
+		</p>
 	{/if}
 </div>

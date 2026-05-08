@@ -30,12 +30,53 @@
 
 	const dispatch = createEventDispatcher<{
 		guessChange: number;
-		axisEdit: 'left' | 'right';
+		axisChange: { side: 'left' | 'right'; value: string };
 	}>();
 
 	let frame: HTMLElement | null = null;
 	let dragging = false;
 	let displayGuess = value;
+	let editingSide: 'left' | 'right' | null = null;
+	let leftDraft = leftLabel;
+	let rightDraft = rightLabel;
+
+	$: if (editingSide !== 'left') leftDraft = leftLabel;
+	$: if (editingSide !== 'right') rightDraft = rightLabel;
+
+	function startAxisEdit(side: 'left' | 'right', event: Event) {
+		if (!axisEditable) return;
+		event.stopPropagation();
+		event.preventDefault();
+		editingSide = side;
+		if (side === 'left') leftDraft = leftLabel;
+		else rightDraft = rightLabel;
+		queueMicrotask(() => {
+			const el = document.getElementById(side === 'left' ? 'axis-left-input' : 'axis-right-input');
+			if (el instanceof HTMLInputElement) {
+				el.focus();
+				el.select();
+			}
+		});
+	}
+
+	function commitAxisEdit(side: 'left' | 'right') {
+		const draft = side === 'left' ? leftDraft : rightDraft;
+		const trimmed = draft.trim().slice(0, 40);
+		const original = side === 'left' ? leftLabel : rightLabel;
+		editingSide = null;
+		if (!trimmed || trimmed === original) {
+			if (side === 'left') leftDraft = leftLabel;
+			else rightDraft = rightLabel;
+			return;
+		}
+		dispatch('axisChange', { side, value: trimmed });
+	}
+
+	function cancelAxisEdit(side: 'left' | 'right') {
+		if (side === 'left') leftDraft = leftLabel;
+		else rightDraft = rightLabel;
+		editingSide = null;
+	}
 
 	$: displayGuess = value ?? guessValue;
 	$: showZones = targetValue !== null && (mode === 'psychic' || mode === 'reveal' || showScoringBands);
@@ -172,16 +213,34 @@
 
 	<div
 		class="spectrum-labels absolute inset-x-0 top-8 z-50 flex items-start justify-between gap-4 px-6 text-sm font-semibold tracking-[0.18em] text-white/90 uppercase md:px-12"
-		class:pointer-events-none={!axisEditable}
+		class:pointer-events-none={!axisEditable && !editingSide}
 	>
-		{#if axisEditable}
+		{#if axisEditable && editingSide === 'left'}
+			<input
+				id="axis-left-input"
+				bind:value={leftDraft}
+				maxlength="40"
+				class="axis-input pointer-events-auto rounded-full border border-white/60 bg-black/60 px-3 py-1 text-left text-sm tracking-[0.18em] text-white uppercase outline-none"
+				onpointerdown={(e) => e.stopPropagation()}
+				onclick={(e) => e.stopPropagation()}
+				onblur={() => commitAxisEdit('left')}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						commitAxisEdit('left');
+					} else if (e.key === 'Escape') {
+						e.preventDefault();
+						cancelAxisEdit('left');
+					}
+				}}
+			/>
+		{:else if axisEditable}
 			<button
 				type="button"
-				class="axis-pill pointer-events-auto rounded-full border border-white/25 bg-black/40 px-3 py-1 backdrop-blur-sm transition hover:border-white/50 hover:bg-black/55"
-				onclick={(e) => {
-					e.stopPropagation();
-					dispatch('axisEdit', 'left');
-				}}
+				class="axis-pill pointer-events-auto rounded-full border border-white/25 bg-black/40 px-3 py-1 backdrop-blur-sm transition hover:border-white/60 hover:bg-black/55"
+				title="Click to rename"
+				onpointerdown={(e) => e.stopPropagation()}
+				onclick={(e) => startAxisEdit('left', e)}
 			>
 				{leftLabel}
 			</button>
@@ -195,14 +254,32 @@
 				{prompt}
 			</span>
 		{/if}
-		{#if axisEditable}
+		{#if axisEditable && editingSide === 'right'}
+			<input
+				id="axis-right-input"
+				bind:value={rightDraft}
+				maxlength="40"
+				class="axis-input pointer-events-auto rounded-full border border-white/60 bg-black/60 px-3 py-1 text-right text-sm tracking-[0.18em] text-white uppercase outline-none"
+				onpointerdown={(e) => e.stopPropagation()}
+				onclick={(e) => e.stopPropagation()}
+				onblur={() => commitAxisEdit('right')}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						commitAxisEdit('right');
+					} else if (e.key === 'Escape') {
+						e.preventDefault();
+						cancelAxisEdit('right');
+					}
+				}}
+			/>
+		{:else if axisEditable}
 			<button
 				type="button"
-				class="axis-pill pointer-events-auto rounded-full border border-white/25 bg-black/40 px-3 py-1 backdrop-blur-sm transition hover:border-white/50 hover:bg-black/55"
-				onclick={(e) => {
-					e.stopPropagation();
-					dispatch('axisEdit', 'right');
-				}}
+				class="axis-pill pointer-events-auto rounded-full border border-white/25 bg-black/40 px-3 py-1 backdrop-blur-sm transition hover:border-white/60 hover:bg-black/55"
+				title="Click to rename"
+				onpointerdown={(e) => e.stopPropagation()}
+				onclick={(e) => startAxisEdit('right', e)}
 			>
 				{rightLabel}
 			</button>

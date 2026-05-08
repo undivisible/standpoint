@@ -11,19 +11,13 @@
 	$: isHost =
 		room.hostPlayerId === currentPlayerId ||
 		room.players.find((player) => player.id === currentPlayerId)?.isHost;
-	$: result = room.lastRoundResult;
-	$: gameEnded = room.winningTeam !== null;
-	$: winnerLabel = room.winningTeam === 0 ? 'Team Red' : 'Team Blue';
-	$: activeLabel = result
-		? result.activeTeam === 0
-			? 'Team Red'
-			: 'Team Blue'
-		: '';
-	$: otherLabel = result
-		? result.activeTeam === 0
-			? 'Team Blue'
-			: 'Team Red'
-		: '';
+	$: results = [...(room.lastRoundResults ?? [])].sort((a, b) => b.points - a.points);
+	$: topPoints = results[0]?.points ?? 0;
+	$: avgGuess =
+		results.length > 0
+			? Math.round(results.reduce((sum, entry) => sum + entry.value, 0) / results.length)
+			: null;
+	$: phaseLabel = room.phase === 'scoring' ? 'Locking in scores' : 'Reveal';
 </script>
 
 <SpectrumBars
@@ -32,7 +26,7 @@
 	prompt={room.settings?.customPrompt ?? null}
 	mode="reveal"
 	targetValue={room.targetValue}
-	guessValue={room.lockedGuess ?? room.guessValue ?? 50}
+	guessValue={avgGuess ?? 50}
 	showScoringBands
 	locked
 />
@@ -41,57 +35,64 @@
 	<div
 		class="rounded-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl backdrop-blur"
 	>
-		{#if gameEnded}
-			<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">Game over</p>
-			<h1 class="mt-2 text-4xl font-black text-[var(--text)]">{winnerLabel} wins</h1>
-			<p class="mt-2 text-[var(--text-secondary)]">
-				Final score {room.teamScores[0]}–{room.teamScores[1]}.
+		<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">{phaseLabel}</p>
+		<h1 class="mt-2 text-3xl font-black text-[var(--text)]">
+			Target {room.targetValue ?? 0}
+		</h1>
+		<p class="mt-1 text-xs text-[var(--text-secondary)]">
+			Clue: <span class="text-[var(--text)]">{room.clue ?? '—'}</span>
+		</p>
+
+		{#if results.length > 0}
+			<ul class="mt-4 max-h-56 space-y-1.5 overflow-y-auto pr-1">
+				{#each results as entry (entry.playerId)}
+					<li
+						class="flex items-center justify-between rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+					>
+						<div class="flex items-center gap-2">
+							<span class="font-semibold text-[var(--text)]">{entry.displayName}</span>
+							<span class="text-xs text-[var(--text-secondary)]">
+								guess {entry.value} · off {entry.distance}
+							</span>
+						</div>
+						<span class="text-base font-black text-[rgb(var(--primary))]">+{entry.points}</span>
+					</li>
+				{/each}
+			</ul>
+			<p class="mt-3 text-xs text-[var(--text-secondary)]">
+				Best this round: {topPoints} {topPoints === 1 ? 'point' : 'points'}.
 			</p>
-			{#if isHost}
-				<button
-					type="button"
-					class="mt-5 rounded-md bg-[rgb(var(--primary))] px-5 py-3 font-semibold text-white transition hover:brightness-110"
-					onclick={() => dispatch('reset')}
-				>
-					New Game
-				</button>
-			{:else}
-				<p class="mt-5 text-sm text-[var(--text-secondary)]">Waiting for the host.</p>
-			{/if}
 		{:else}
-			<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">Reveal</p>
-			<h1 class="mt-2 text-4xl font-black text-[var(--text)]">
-				{result?.activePoints ?? 0} {result?.activePoints === 1 ? 'point' : 'points'}
-			</h1>
-			<p class="mt-2 text-[var(--text-secondary)]">
-				{activeLabel} scores {result?.activePoints ?? 0}.
-				{#if result && result.leftRightPoints > 0}
-					{otherLabel} guessed left/right and gets +1.
-				{/if}
-			</p>
-			<p class="mt-1 text-xs text-[var(--text-secondary)]">
-				Target {room.targetValue ?? 0}, guess {room.lockedGuess ?? room.guessValue ?? 0}, distance {Math.round(
-					room.lastDistance ?? 0
-				)}.
-			</p>
-			{#if isHost}
+			<p class="mt-4 text-sm text-[var(--text-secondary)]">No guesses were placed this round.</p>
+		{/if}
+
+		{#if isHost}
+			<div class="mt-5 flex flex-wrap gap-3">
 				<button
 					type="button"
-					class="mt-5 rounded-md bg-[rgb(var(--primary))] px-5 py-3 font-semibold text-white transition hover:brightness-110"
+					class="rounded-md bg-[rgb(var(--primary))] px-5 py-3 font-semibold text-white transition hover:brightness-110"
 					onclick={() => dispatch('next')}
 				>
 					Next Round
 				</button>
-			{:else}
-				<p class="mt-5 text-sm text-[var(--text-secondary)]">Next round starts automatically.</p>
-			{/if}
+				<button
+					type="button"
+					class="rounded-md border border-[var(--border)] px-5 py-3 font-semibold text-[var(--text)] transition hover:border-[rgb(var(--primary))] hover:text-[rgb(var(--primary))]"
+					onclick={() => dispatch('reset')}
+				>
+					End Game
+				</button>
+			</div>
+		{:else}
+			<p class="mt-5 text-sm text-[var(--text-secondary)]">
+				Waiting for the host to start the next round.
+			</p>
 		{/if}
 	</div>
 	<Scoreboard
 		players={room.players}
-		teamScores={room.teamScores}
-		activeTeam={room.activeTeam}
-		winningTeam={room.winningTeam}
-		winThreshold={room.winThreshold}
+		scores={room.scores}
+		psychicId={room.psychicId}
+		{currentPlayerId}
 	/>
 </div>

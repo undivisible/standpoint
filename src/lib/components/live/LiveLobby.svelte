@@ -12,21 +12,14 @@
 		start: void;
 		leave: void;
 		settings: RoomSettingsInput;
+		kick: string;
 	}>();
 
 	$: isHost =
 		room.hostPlayerId === currentPlayerId ||
 		room.players.find((player) => player.id === currentPlayerId)?.isHost;
-	$: connectedTeamA = room.players.filter(
-		(player) => player.connected && player.team === 0
-	).length;
-	$: connectedTeamB = room.players.filter(
-		(player) => player.connected && player.team === 1
-	).length;
 	$: connectedCount = room.players.filter((player) => player.connected).length;
-	$: canStart =
-		connectedCount >= 2 &&
-		(connectedCount === 2 || (connectedTeamA >= 1 && connectedTeamB >= 1));
+	$: canStart = connectedCount >= 2;
 </script>
 
 <section
@@ -36,12 +29,10 @@
 		<p class="text-sm tracking-[0.28em] text-[rgb(var(--primary))] uppercase">Spectrum</p>
 		<h1 class="mt-4 font-sans text-5xl font-black text-[var(--text)] md:text-7xl">Lobby</h1>
 		<p class="mt-4 max-w-2xl text-lg text-[var(--text-secondary)]">
-			With exactly two people, you play head-to-head: the psychic alternates each round and the
-			other player always places the dial guess, then tries left/right for a catch-up point. With
-			three or more, two teams take turns: the active team's psychic gives a clue, a teammate places
-			the guess, and the other team picks left or right. Psychic rotates within the active team.
-			First team to {room.winThreshold} wins. The host is on a team and can start the next round
-			after a reveal.
+			Each round one connected player is the psychic. They see the hidden target and give a clue.
+			Everyone else places their own guess on the dial. When the host locks guesses, every guess is
+			scored individually based on how close it is to the target. The psychic role rotates through
+			all connected players. The host runs the game and starts each new round.
 		</p>
 		<div class="mt-8 flex flex-wrap gap-3">
 			<button
@@ -64,8 +55,7 @@
 			<p class="mt-4 text-sm text-[var(--text-secondary)]">Waiting for the host to start.</p>
 		{:else if !canStart}
 			<p class="mt-4 text-sm text-[var(--text-secondary)]">
-				Need two connected players for a head-to-head game, or at least one on each team for a
-				group game. Team Red {connectedTeamA}, Team Blue {connectedTeamB} ({connectedCount} connected).
+				Need at least two connected players. {connectedCount} connected.
 			</p>
 		{/if}
 	</div>
@@ -92,6 +82,12 @@
 				{/if}
 			</div>
 		{/if}
-		<PlayerList players={room.players} psychicId={room.psychicId} />
+		<PlayerList
+			players={room.players}
+			psychicId={room.psychicId}
+			{currentPlayerId}
+			canKick={isHost}
+			on:kick={(event) => dispatch('kick', event.detail)}
+		/>
 	</div>
 </section>

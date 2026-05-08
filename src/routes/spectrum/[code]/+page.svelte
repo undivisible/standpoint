@@ -7,9 +7,7 @@
 	import LiveLobby from '$lib/components/live/LiveLobby.svelte';
 	import PsychicPanel from '$lib/components/live/PsychicPanel.svelte';
 	import GuessPanel from '$lib/components/live/GuessPanel.svelte';
-	import LeftRightPanel from '$lib/components/live/LeftRightPanel.svelte';
 	import RoundReveal from '$lib/components/live/RoundReveal.svelte';
-	import Scoreboard from '$lib/components/live/Scoreboard.svelte';
 	import type { PublicRoomState, RoomSettingsInput } from '$lib/live/types';
 
 	let playerName = '';
@@ -146,13 +144,14 @@
 		>
 			Connecting…
 		</section>
-	{:else if roomState.phase === 'lobby' || roomState.phase === 'starting'}
+	{:else if roomState.phase === 'lobby' || roomState.phase === 'starting' || roomState.phase === 'ended'}
 		<LiveLobby
 			room={roomState}
 			{currentPlayerId}
 			on:start={() => client?.startGame()}
 			on:leave={leave}
 			on:settings={(event) => client?.updateSettings(event.detail)}
+			on:kick={(event) => client?.kickPlayer(event.detail)}
 		/>
 	{:else if roomState.phase === 'psychic_clue'}
 		<PsychicPanel
@@ -168,34 +167,12 @@
 			on:guess={(event) => client?.updateGuess(event.detail)}
 			on:lock={() => client?.lockGuess()}
 		/>
-	{:else if roomState.phase === 'left_right'}
-		<LeftRightPanel
-			room={roomState}
-			{currentPlayerId}
-			on:guess={(event) => client?.submitLeftRight(event.detail)}
-		/>
-	{:else if roomState.phase === 'reveal' || roomState.phase === 'ended'}
+	{:else if roomState.phase === 'reveal' || roomState.phase === 'scoring'}
 		<RoundReveal
 			room={roomState}
 			{currentPlayerId}
 			on:next={() => client?.nextRound()}
 			on:reset={() => client?.resetGame()}
 		/>
-	{:else if roomState.phase === 'scoring'}
-		<section class="min-h-[calc(100vh-5rem)] bg-[var(--bg)] px-4 py-10">
-			<div class="mx-auto max-w-3xl">
-				<h1 class="text-4xl font-black text-[var(--text)]">Next round starting</h1>
-				<p class="mt-2 text-[var(--text-secondary)]">Scores are locked. Rotating psychic.</p>
-				<div class="mt-6">
-					<Scoreboard
-						players={roomState.players}
-						teamScores={roomState.teamScores}
-						activeTeam={roomState.activeTeam}
-						winningTeam={roomState.winningTeam}
-						winThreshold={roomState.winThreshold}
-					/>
-				</div>
-			</div>
-		</section>
 	{/if}
 {/if}

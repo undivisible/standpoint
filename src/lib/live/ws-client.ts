@@ -69,10 +69,6 @@ export class LiveWSClient {
 		this.send({ type: 'lock_guess' });
 	}
 
-	submitLeftRight(direction: 'left' | 'right') {
-		this.send({ type: 'submit_left_right', direction });
-	}
-
 	nextRound() {
 		this.send({ type: 'next_round' });
 	}
@@ -83,6 +79,10 @@ export class LiveWSClient {
 
 	updateSettings(settings: RoomSettingsInput) {
 		this.send({ type: 'update_settings', settings });
+	}
+
+	kickPlayer(playerId: string) {
+		this.send({ type: 'kick_player', playerId });
 	}
 
 	leaveRoom() {
