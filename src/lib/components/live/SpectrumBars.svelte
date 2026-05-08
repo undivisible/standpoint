@@ -11,6 +11,7 @@
 	export let locked = false;
 	export let disabled = false;
 	export let showScoringBands = false;
+	export let axisEditable = false;
 
 	const scoringZones = [
 		{ radius: 14, points: 2, color: '#facc15' },
@@ -21,6 +22,7 @@
 	const dispatch = createEventDispatcher<{
 		guessChange: number;
 		guessLock: number;
+		axisEdit: 'left' | 'right';
 	}>();
 
 	let frame: HTMLElement | null = null;
@@ -116,9 +118,23 @@
 	{/if}
 
 	<div
-		class="spectrum-labels pointer-events-none absolute inset-x-0 top-8 z-50 flex items-start justify-between gap-4 px-6 text-sm font-semibold tracking-[0.18em] text-white/90 uppercase md:px-12"
+		class="spectrum-labels absolute inset-x-0 top-8 z-50 flex items-start justify-between gap-4 px-6 text-sm font-semibold tracking-[0.18em] text-white/90 uppercase md:px-12"
+		class:pointer-events-none={!axisEditable}
 	>
-		<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{leftLabel}</span>
+		{#if axisEditable}
+			<button
+				type="button"
+				class="axis-pill rounded-full border border-white/25 bg-black/40 px-3 py-1 backdrop-blur-sm transition hover:border-white/50 hover:bg-black/55 pointer-events-auto"
+				onclick={(e) => {
+					e.stopPropagation();
+					dispatch('axisEdit', 'left');
+				}}
+			>
+				{leftLabel}
+			</button>
+		{:else}
+			<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{leftLabel}</span>
+		{/if}
 		{#if prompt}
 			<span
 				class="prompt-pill max-w-[60%] rounded-full border border-white/30 bg-black/45 px-4 py-1 text-center text-xs leading-snug tracking-[0.18em] text-white normal-case backdrop-blur-sm md:text-sm"
@@ -126,7 +142,20 @@
 				{prompt}
 			</span>
 		{/if}
-		<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{rightLabel}</span>
+		{#if axisEditable}
+			<button
+				type="button"
+				class="axis-pill rounded-full border border-white/25 bg-black/40 px-3 py-1 backdrop-blur-sm transition hover:border-white/50 hover:bg-black/55 pointer-events-auto"
+				onclick={(e) => {
+					e.stopPropagation();
+					dispatch('axisEdit', 'right');
+				}}
+			>
+				{rightLabel}
+			</button>
+		{:else}
+			<span class="rounded-full bg-black/40 px-3 py-1 backdrop-blur-sm">{rightLabel}</span>
+		{/if}
 	</div>
 
 	<div

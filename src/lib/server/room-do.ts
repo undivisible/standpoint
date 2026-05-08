@@ -600,24 +600,43 @@ export class RoomDO {
 	}
 
 	private async updateSettings(ws: WebSocket, input: RoomSettingsInput) {
-		this.assertHost(ws);
 		const room = this.requireRoom();
-		const left = normalizeSetting(input?.customLeftLabel, 40);
-		const right = normalizeSetting(input?.customRightLabel, 40);
-		const prompt = normalizeSetting(input?.customPrompt, 200);
+		const playerId = this.requirePlayer(ws);
+		const psychic = this.currentPsychic();
+		const host = this.isHost(ws);
+		const psychicAxes =
+			room.phase === 'psychic_clue' && psychic?.id === playerId && !room.clue;
 
-		room.settings = {
-			customLeftLabel: left,
-			customRightLabel: right,
-			customPrompt: prompt
-		};
+		if (!host && !psychicAxes) {
+			throw new Error(
+				'Only the host can change game settings, or the psychic can rename the spectrum ends before submitting a clue.'
+			);
+		}
+
+		const next = { ...room.settings };
+
+		if (host) {
+			if (input.customLeftLabel !== undefined)
+				next.customLeftLabel = normalizeSetting(input.customLeftLabel, 40);
+			if (input.customRightLabel !== undefined)
+				next.customRightLabel = normalizeSetting(input.customRightLabel, 40);
+			if (input.customPrompt !== undefined)
+				next.customPrompt = normalizeSetting(input.customPrompt, 200);
+		} else {
+			if (input.customLeftLabel !== undefined)
+				next.customLeftLabel = normalizeSetting(input.customLeftLabel, 40);
+			if (input.customRightLabel !== undefined)
+				next.customRightLabel = normalizeSetting(input.customRightLabel, 40);
+		}
+
+		room.settings = next;
 		room.updatedAt = new Date().toISOString();
 
-		if (room.spectrum && (left || right)) {
+		if (room.spectrum) {
 			room.spectrum = {
 				...room.spectrum,
-				left: left ?? room.spectrum.left,
-				right: right ?? room.spectrum.right
+				...(next.customLeftLabel != null ? { left: next.customLeftLabel } : {}),
+				...(next.customRightLabel != null ? { right: next.customRightLabel } : {})
 			};
 		}
 
@@ -760,13 +779,19 @@ export class RoomDO {
 		return playerId;
 	}
 
-	private assertHost(ws: WebSocket) {
-		const playerId = this.requirePlayer(ws);
+	private isHost(ws: WebSocket) {
+		const playerId = this.playerSockets.get(ws);
+		if (!playerId) return false;
 		const room = this.requireRoom();
 		const player = room.players.find((candidate) => candidate.id === playerId);
-		if (!player || (player.id !== room.hostPlayerId && player.userId !== room.hostUserId)) {
-			throw new Error('Only the host can do that.');
-		}
+		return Boolean(
+			player && (player.id === room.hostPlayerId || player.userId === room.hostUserId)
+		);
+	}
+
+	private assertHost(ws: WebSocket) {
+		this.requirePlayer(ws);
+		if (!this.isHost(ws)) throw new Error('Only the host can do that.');
 	}
 
 	private currentPsychic() {
