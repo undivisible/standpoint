@@ -452,9 +452,18 @@ export class RoomDO {
 
 	private async beginRound(incrementRound: boolean) {
 		const room = this.requireRoom();
+		if (!incrementRound && room.currentRoundId) {
+			await this.env.DB.prepare('DELETE FROM standpoint_rounds WHERE id = ?').bind(room.currentRoundId).run();
+		}
+
 		const connected = this.connectedPlayers();
 		if (connected.length < 2) {
 			room.phase = 'lobby';
+			room.currentRoundId = undefined;
+			room.spectrum = null;
+			room.targetValue = null;
+			room.clue = null;
+			room.guesses = new Map();
 			await this.clearScheduledAlarm();
 			await this.persistRoomStatus();
 			this.broadcastSnapshots();
@@ -528,8 +537,8 @@ export class RoomDO {
 		if (!customLeftLabel && !customRightLabel) return card;
 		const left = customLeftLabel ?? card.left;
 		const right = customRightLabel ?? card.right;
-		const cardId = customLeftLabel && customRightLabel ? `custom-${room.id}` : card.cardId;
-		return { cardId, left, right };
+		// Always persist the real spectrum_cards row id — synthetic ids break FK on standpoint_rounds.
+		return { cardId: card.cardId, left, right };
 	}
 
 	private async submitClue(ws: WebSocket, clue: string) {
@@ -676,6 +685,11 @@ export class RoomDO {
 		if (target.userId === room.hostUserId || target.isHost)
 			throw new Error('Cannot remove the host.');
 
+		const lastPsychicId = room.psychicHistory.at(-1);
+		const wasPsychicMidRound =
+			lastPsychicId === cleanId &&
+			(room.phase === 'psychic_clue' || room.phase === 'guessing');
+
 		for (const s of this.wsSet) {
 			if (this.playerSockets.get(s) === cleanId) {
 				this.playerSockets.delete(s);
@@ -696,12 +710,16 @@ export class RoomDO {
 		await this.env.DB.prepare('DELETE FROM standpoint_room_scores WHERE room_id = ? AND player_id = ?')
 			.bind(room.id, cleanId)
 			.run();
-		await this.env.DB.prepare('DELETE FROM standpoint_room_players WHERE id = ?').bind(cleanId).run();
 
-		const psychic = this.currentPsychic();
-		if (psychic?.id === cleanId && (room.phase === 'psychic_clue' || room.phase === 'guessing')) {
+		if (wasPsychicMidRound) {
+			room.psychicHistory = room.psychicHistory.filter((id) => id !== cleanId);
 			await this.beginRound(false);
 		}
+
+		await this.env.DB.prepare('DELETE FROM standpoint_rounds WHERE room_id = ? AND psychic_id = ?')
+			.bind(room.id, cleanId)
+			.run();
+		await this.env.DB.prepare('DELETE FROM standpoint_room_players WHERE id = ?').bind(cleanId).run();
 
 		this.broadcast({ type: 'player_kicked', playerId: cleanId });
 		this.broadcastSnapshots();

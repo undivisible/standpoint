@@ -20,21 +20,29 @@
 	$: phaseLabel = room.phase === 'scoring' ? 'Locking in scores' : 'Reveal';
 </script>
 
-<SpectrumBars
-	leftLabel={room.spectrum?.left ?? ''}
-	rightLabel={room.spectrum?.right ?? ''}
-	prompt={room.settings?.customPrompt ?? null}
-	mode="reveal"
-	targetValue={room.targetValue}
-	guessValue={avgGuess ?? 50}
-	showScoringBands
-	locked
-/>
+<div
+	class="relative isolate flex min-h-[calc(100dvh-5rem)] w-full max-w-[100vw] flex-col overflow-hidden"
+>
+	<div class="relative min-h-0 flex-1 overflow-hidden">
+		<SpectrumBars
+			leftLabel={room.spectrum?.left ?? ''}
+			rightLabel={room.spectrum?.right ?? ''}
+			prompt={room.settings?.customPrompt ?? null}
+			mode="reveal"
+			targetValue={room.targetValue}
+			guessValue={avgGuess ?? 50}
+			showScoringBands
+			locked
+		/>
+	</div>
 
-<div class="fixed inset-x-4 bottom-10 z-[70] mx-auto grid max-w-5xl gap-4 md:grid-cols-[1fr_360px]">
 	<div
-		class="rounded-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl backdrop-blur"
+		class="pointer-events-auto absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] z-[70] mx-auto max-h-[min(58vh,32rem)] w-full max-w-5xl overflow-y-auto sm:inset-x-4 sm:bottom-5"
 	>
+		<div class="grid gap-4 md:grid-cols-[1fr_360px]">
+			<div
+				class="rounded-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl backdrop-blur"
+			>
 		<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">{phaseLabel}</p>
 		<h1 class="mt-2 text-3xl font-black text-[var(--text)]">
 			Target {room.targetValue ?? 0}
@@ -88,13 +96,15 @@
 				Waiting for the host to start the next round.
 			</p>
 		{/if}
+			</div>
+			<Scoreboard
+				players={room.players}
+				scores={room.scores}
+				psychicId={room.psychicId}
+				{currentPlayerId}
+				canKick={isHost}
+				on:kick={(event) => dispatch('kick', event.detail)}
+			/>
+		</div>
 	</div>
-	<Scoreboard
-		players={room.players}
-		scores={room.scores}
-		psychicId={room.psychicId}
-		{currentPlayerId}
-		canKick={isHost}
-		on:kick={(event) => dispatch('kick', event.detail)}
-	/>
 </div>

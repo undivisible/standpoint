@@ -174,7 +174,7 @@
 </script>
 
 <section
-	class="spectrum fixed inset-0 isolate h-screen w-screen overflow-hidden text-[var(--text)]"
+	class="spectrum absolute inset-0 isolate h-full min-h-0 w-full max-w-full overflow-hidden text-[var(--text)]"
 	class:is-guessing={mode === 'guessing' && !disabled && !locked}
 	class:is-reveal={mode === 'reveal'}
 	bind:this={frame}

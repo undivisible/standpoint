@@ -82,20 +82,25 @@
 	}
 </script>
 
-<SpectrumBars
-	leftLabel={room.spectrum?.left ?? ''}
-	rightLabel={room.spectrum?.right ?? ''}
-	prompt={room.settings?.customPrompt ?? null}
-	mode={isPsychic ? 'psychic' : 'spectator'}
-	targetValue={isPsychic ? room.targetValue : null}
-	axisEditable={isPsychic}
-	disabled
-	on:axisChange={(e) => applyAxisFromBars(e.detail)}
-/>
-
 <div
-	class="fixed inset-x-4 bottom-20 z-[70] mx-auto max-w-2xl rounded-md border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl backdrop-blur"
+	class="relative isolate flex min-h-[calc(100dvh-5rem)] w-full max-w-[100vw] flex-col overflow-hidden"
 >
+	<div class="relative min-h-0 flex-1 overflow-hidden">
+		<SpectrumBars
+			leftLabel={room.spectrum?.left ?? ''}
+			rightLabel={room.spectrum?.right ?? ''}
+			prompt={room.settings?.customPrompt ?? null}
+			mode={isPsychic ? 'psychic' : 'spectator'}
+			targetValue={isPsychic ? room.targetValue : null}
+			axisEditable={isPsychic}
+			disabled
+			on:axisChange={(e) => applyAxisFromBars(e.detail)}
+		/>
+	</div>
+
+	<div
+		class="pointer-events-auto absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] z-[70] mx-auto max-h-[min(52vh,28rem)] max-w-2xl overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--surface)] p-4 shadow-2xl backdrop-blur sm:inset-x-4 sm:bottom-5 sm:p-5"
+	>
 	{#if isPsychic}
 		<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">You are psychic</p>
 		<div class="mt-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -208,4 +213,5 @@
 			{/each}
 		</div>
 	{/if}
+	</div>
 </div>

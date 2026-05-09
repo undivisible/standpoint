@@ -55,20 +55,25 @@
 	$: guessesNeeded = room.players.filter((p) => p.connected && p.id !== room.psychicId).length;
 </script>
 
-<SpectrumBars
-	leftLabel={room.spectrum?.left ?? ''}
-	rightLabel={room.spectrum?.right ?? ''}
-	prompt={room.settings?.customPrompt ?? null}
-	mode={canGuess ? 'guessing' : 'spectator'}
-	value={localGuess}
-	guessValue={localGuess}
-	disabled={!canGuess}
-	on:guessChange={onChange}
-/>
-
 <div
-	class="fixed inset-x-4 bottom-20 z-[70] mx-auto max-w-2xl rounded-md border border-[var(--border)] bg-[var(--surface)] p-5 text-center shadow-2xl backdrop-blur"
+	class="relative isolate flex min-h-[calc(100dvh-5rem)] w-full max-w-[100vw] flex-col overflow-hidden"
 >
+	<div class="relative min-h-0 flex-1 overflow-hidden">
+		<SpectrumBars
+			leftLabel={room.spectrum?.left ?? ''}
+			rightLabel={room.spectrum?.right ?? ''}
+			prompt={room.settings?.customPrompt ?? null}
+			mode={canGuess ? 'guessing' : 'spectator'}
+			value={localGuess}
+			guessValue={localGuess}
+			disabled={!canGuess}
+			on:guessChange={onChange}
+		/>
+	</div>
+
+	<div
+		class="pointer-events-auto absolute inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] z-[70] mx-auto max-h-[min(52vh,28rem)] max-w-2xl overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--surface)] p-4 text-center shadow-2xl backdrop-blur sm:inset-x-4 sm:bottom-5 sm:p-5"
+	>
 	<p class="text-xs tracking-[0.24em] text-[rgb(var(--primary))] uppercase">Clue</p>
 	<h1 class="mt-2 text-3xl font-black text-[var(--text)]">{room.clue}</h1>
 
@@ -131,4 +136,5 @@
 			The host will lock guesses when everyone is ready.
 		</p>
 	{/if}
+	</div>
 </div>
