@@ -50,6 +50,8 @@ export interface TierCreate {
 	color?: string;
 	labelColor?: string;
 	label_color?: string;
+	labelColorEdited?: boolean;
+	label_color_edited?: boolean;
 	items?: TierItem[];
 }
 

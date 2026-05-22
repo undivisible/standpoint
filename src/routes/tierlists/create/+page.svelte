@@ -21,6 +21,7 @@
 	import { addToast } from '$lib/toast';
 	import Toast from '$lib/../components/toast.svelte';
 	import { createAutosaver, getDrafts, deleteDraft, type TierListDraft } from '$lib/draft-autosave';
+	import { dimHexColor, getContrastingLabelColor } from '$lib/tierlist-display';
 	let showLoginModal = false;
 	function promptLogin() {
 		addToast('Please sign in to interact with tierlists', 'info');
@@ -43,6 +44,7 @@
 		name: string;
 		color: string;
 		labelColor: string;
+		labelColorEdited?: boolean;
 		items: TierItem[];
 	}
 
@@ -76,10 +78,34 @@
 		originalId: '',
 		unassignedItems: [],
 		tiers: [
-			{ id: 's', name: 'S', color: '#ff7f7f', labelColor: '#000000', items: [] },
-			{ id: 'a', name: 'A', color: '#ffbf7f', labelColor: '#000000', items: [] },
-			{ id: 'b', name: 'B', color: '#ffff7f', labelColor: '#000000', items: [] },
-			{ id: 'c', name: 'C', color: '#bfff7f', labelColor: '#000000', items: [] }
+			{
+				id: 's',
+				name: 'S',
+				color: '#ff7f7f',
+				labelColor: getContrastingLabelColor(dimHexColor('#ff7f7f')),
+				items: []
+			},
+			{
+				id: 'a',
+				name: 'A',
+				color: '#ffbf7f',
+				labelColor: getContrastingLabelColor(dimHexColor('#ffbf7f')),
+				items: []
+			},
+			{
+				id: 'b',
+				name: 'B',
+				color: '#ffff7f',
+				labelColor: getContrastingLabelColor(dimHexColor('#ffff7f')),
+				items: []
+			},
+			{
+				id: 'c',
+				name: 'C',
+				color: '#bfff7f',
+				labelColor: getContrastingLabelColor(dimHexColor('#bfff7f')),
+				items: []
+			}
 		]
 	};
 
@@ -190,7 +216,11 @@
 				id: `tier_${idx}_${crypto.randomUUID()}`,
 				name: t.name || `Tier ${idx + 1}`,
 				color: t.color || '#666666',
-				labelColor: t.labelColor || t.label_color || '#000000',
+				labelColor:
+					t.labelColor ||
+					t.label_color ||
+					getContrastingLabelColor(dimHexColor(t.color || '#666666')),
+				labelColorEdited: t.labelColorEdited || t.label_color_edited || false,
 				items: []
 			}));
 			const itemsArr: any[] = (data as any).items || [];
@@ -260,7 +290,9 @@
 						position: index / tierList.tiers.length,
 						color: t.color,
 						labelColor: t.labelColor,
-						label_color: t.labelColor
+						label_color: t.labelColor,
+						labelColorEdited: t.labelColorEdited || false,
+						label_color_edited: t.labelColorEdited || false
 					})),
 					items: allItems.map((item) => ({
 						id: item.id,
@@ -317,7 +349,9 @@
 				position: index / tierList.tiers.length,
 				color: t.color,
 				labelColor: t.labelColor,
-				label_color: t.labelColor
+				label_color: t.labelColor,
+				labelColorEdited: t.labelColorEdited || false,
+				label_color_edited: t.labelColorEdited || false
 			})),
 			items: allItems.map((item) => ({
 				id: item.id,
@@ -406,7 +440,9 @@
 						position: index / tierList.tiers.length,
 						color: t.color,
 						labelColor: t.labelColor,
-						label_color: t.labelColor
+						label_color: t.labelColor,
+						labelColorEdited: t.labelColorEdited || false,
+						label_color_edited: t.labelColorEdited || false
 					})),
 					items: allItems.map((item) => ({
 						id: item.id,
@@ -504,7 +540,9 @@
 						position: index / tierList.tiers.length,
 						color: t.color,
 						labelColor: t.labelColor,
-						label_color: t.labelColor
+						label_color: t.labelColor,
+						labelColorEdited: t.labelColorEdited || false,
+						label_color_edited: t.labelColorEdited || false
 					})),
 					items: allItems.map((item) => ({
 						id: item.id,
@@ -723,6 +761,7 @@
 				name: string;
 				color: string;
 				labelColor: string;
+				labelColorEdited?: boolean;
 			}) => ({
 				...tier,
 				items: []
@@ -1123,12 +1162,28 @@
 
 	// Tier Management
 
+	function resolveLabelColor(tier: any) {
+		return tier.labelColor || tier.label_color || getContrastingLabelColor(dimHexColor(tier.color));
+	}
+
+	function isLabelColorEdited(tier: any) {
+		const existingLabelColor = tier.labelColor || tier.label_color;
+		const automaticLabelColor = getContrastingLabelColor(dimHexColor(tier.color));
+		return Boolean(
+			tier.labelColorEdited ||
+				tier.label_color_edited ||
+				(existingLabelColor && existingLabelColor.toLowerCase() !== automaticLabelColor)
+		);
+	}
+
 	function normalizeEditorTier(tier: any, index: number): Tier {
+		const color = tier.color || tierColors[index % tierColors.length];
 		return {
 			id: tier.id || `tier_${index}_${crypto.randomUUID()}`,
 			name: tier.name || `Tier ${index + 1}`,
-			color: tier.color || tierColors[index % tierColors.length],
-			labelColor: tier.labelColor || tier.label_color || '#000000',
+			color,
+			labelColor: resolveLabelColor({ ...tier, color }),
+			labelColorEdited: isLabelColorEdited({ ...tier, color }),
 			items: tier.items || []
 		};
 	}
@@ -1138,22 +1193,24 @@
 	}
 
 	function addTier() {
+		const color = tierColors[tierList.tiers.length % tierColors.length];
 		const newTier: Tier = {
 			id: `tier_${crypto.randomUUID()}`,
 			name: `Tier ${tierList.tiers.length + 1}`,
-			color: tierColors[tierList.tiers.length % tierColors.length],
-			labelColor: '#000000',
+			color,
+			labelColor: getContrastingLabelColor(dimHexColor(color)),
 			items: []
 		};
 		tierList.tiers = [...tierList.tiers, newTier];
 	}
 
 	function addTierAtPosition(position: number) {
+		const color = tierColors[tierList.tiers.length % tierColors.length];
 		const newTier: Tier = {
 			id: `tier_${crypto.randomUUID()}`,
 			name: `Tier ${tierList.tiers.length + 1}`,
-			color: tierColors[tierList.tiers.length % tierColors.length],
-			labelColor: '#000000',
+			color,
+			labelColor: getContrastingLabelColor(dimHexColor(color)),
 			items: []
 		};
 		tierList.tiers.splice(position, 0, newTier);
@@ -1171,13 +1228,23 @@
 	}
 
 	function updateTierColor(tierId: string, color: string) {
-		tierList.tiers = tierList.tiers.map((tier) => (tier.id === tierId ? { ...tier, color } : tier));
+		tierList.tiers = tierList.tiers.map((tier) =>
+			tier.id === tierId
+				? {
+						...tier,
+						color,
+						labelColor: tier.labelColorEdited
+							? tier.labelColor
+							: getContrastingLabelColor(dimHexColor(color))
+					}
+				: tier
+		);
 		closeColorPicker();
 	}
 
 	function updateTierLabelColor(tierId: string, labelColor: string) {
 		tierList.tiers = tierList.tiers.map((tier) =>
-			tier.id === tierId ? { ...tier, labelColor } : tier
+			tier.id === tierId ? { ...tier, labelColor, labelColorEdited: true } : tier
 		);
 	}
 
@@ -1702,7 +1769,9 @@
 					position: index / tierList.tiers.length,
 					color: tier.color,
 					labelColor: tier.labelColor,
-					label_color: tier.labelColor
+					label_color: tier.labelColor,
+					labelColorEdited: tier.labelColorEdited || false,
+					label_color_edited: tier.labelColorEdited || false
 				})),
 				items: allItems.map((item) => ({
 					id: item.id,

@@ -10,6 +10,7 @@
 	import { fade } from 'svelte/transition';
 	import { fadeImage } from '$lib/fadeImage';
 	import { goto } from '$app/navigation';
+	import { normalizeTierlistDate } from '$lib/tierlist-display';
 	const LOCAL_STORAGE_TIERLISTS_KEY = 'standpoint_local_tierlists';
 
 	let tierLists: any[] = [];
@@ -18,6 +19,25 @@
 	let heroSlides: any[] = [];
 
 	let interactionCounts: Record<string, { likes: number; comments: number; forks: number }> = {};
+
+	function formatTierlistDate(value: unknown) {
+		const date = normalizeTierlistDate(value);
+		if (!date) return '';
+		return date.toLocaleString('en-US', {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
+
+	function formatTierlistDateISO(value: unknown) {
+		return (
+			normalizeTierlistDate(value)?.toISOString().split('T')[0] ||
+			new Date().toISOString().split('T')[0]
+		);
+	}
 
 	onMount(async () => {
 		await loadTierLists();
@@ -54,9 +74,7 @@
 							comments: 0,
 							forks: 0,
 							items: t.items || t.items?.length ? t.items : t.item_placements ? t.items : t.items,
-							created_at: t.created_at
-								? { toDate: () => new Date(t.created_at) }
-								: { toDate: () => new Date() }
+							created_at: t.created_at || new Date().toISOString()
 						}));
 					} catch {}
 				}
@@ -76,10 +94,8 @@
 			if (tierLists.length > 0) {
 				heroSlides = tierLists.slice(0, 5).map((tierList, index) => ({
 					header: tierList.title,
-					author: tierList.ownerDisplayName || 'Community',
-					date: tierList.created_at
-						? new Date(tierList.created_at.toDate()).toISOString().split('T')[0]
-						: new Date().toISOString().split('T')[0],
+					author: tierList.ownerDisplayName || tierList.owner_displayName || 'Community',
+					date: formatTierlistDateISO(tierList.created_at),
 					revision: 1,
 					likes: tierList.likes || 0,
 					comments: tierList.comments || 0,
@@ -90,7 +106,7 @@
 				}));
 			}
 		} catch (err) {
-			error = 'Failed to load tier lists. Make sure Firebase is configured properly.';
+			error = 'Failed to load tier lists. Please try again.';
 			console.error('Error loading tier lists:', err);
 		} finally {
 			loading = false;
@@ -205,14 +221,8 @@
 							<!-- Top metadata -->
 							<div class="flex items-start justify-between text-xs">
 								<div class="flex gap-2 opacity-80">
-									{#if tierList.created_at}<span>
-											{new Date(tierList.created_at.toDate()).toLocaleString('en-US', {
-												year: 'numeric',
-												month: 'short',
-												day: 'numeric',
-												hour: '2-digit',
-												minute: '2-digit'
-											})}</span
+									{#if formatTierlistDate(tierList.created_at)}<span>
+											{formatTierlistDate(tierList.created_at)}</span
 										>{/if}
 								</div>
 								<div class="flex items-center gap-2 opacity-80">
@@ -246,7 +256,7 @@
 							<div class="flex flex-1 items-center">
 								<div class="w-full">
 									<span class="mt-1 text-xs text-gray-300">
-										{tierList.ownerDisplayName || 'Anonymous User'}
+										{tierList.ownerDisplayName || tierList.owner_displayName || 'Anonymous User'}
 									</span>
 									<h3 class="text-xl leading-tight font-bold">{tierList.title}</h3>
 								</div>

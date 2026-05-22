@@ -11,6 +11,7 @@
 	import { currentUser, userGroup } from '$lib/stores';
 	import { addToast } from '$lib/toast';
 	import { fadeImage } from '$lib/fadeImage';
+	import { dimHexColor, getContrastingLabelColor } from '$lib/tierlist-display';
 	import {
 		hasUserLikedTierlist,
 		likeTierlist,
@@ -119,7 +120,12 @@
 					id: tier.name || tier.id || `tier-${index}`,
 					name: tier.name || `Tier ${index + 1}`,
 					color: tier.color || defaultColors[index % defaultColors.length],
-					labelColor: tier.labelColor || tier.label_color || '#000000',
+					labelColor:
+						tier.labelColor ||
+						tier.label_color ||
+						getContrastingLabelColor(
+							dimHexColor(tier.color || defaultColors[index % defaultColors.length])
+						),
 					position: tier.position ?? index / Math.max(1, (found.tiers || []).length),
 					items: []
 				})
@@ -237,7 +243,12 @@
 				...tier,
 				id: tier.name || `tier-${index}`,
 				color: tier.color || defaultColors[index % defaultColors.length],
-				labelColor: tier.labelColor || tier.label_color || '#000000',
+				labelColor:
+					tier.labelColor ||
+					tier.label_color ||
+					getContrastingLabelColor(
+						dimHexColor(tier.color || defaultColors[index % defaultColors.length])
+					),
 				items: []
 			}));
 
