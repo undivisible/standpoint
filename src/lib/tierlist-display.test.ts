@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { dimHexColor, getContrastingLabelColor, normalizeTierlistDate } from './tierlist-display';
+import {
+	dimHexColor,
+	getContrastingLabelColor,
+	getDynamicDisplayItemSize,
+	getDynamicTextDisplayStyle,
+	normalizeTierlistDate
+} from './tierlist-display';
 
 describe('tierlist display helpers', () => {
 	it('chooses readable label colors from tier background colors', () => {
@@ -21,5 +27,20 @@ describe('tierlist display helpers', () => {
 			normalizeTierlistDate({ toDate: () => new Date('2026-05-21T00:00:00.000Z') })?.toISOString()
 		).toBe('2026-05-21T00:00:00.000Z');
 		expect(normalizeTierlistDate(null)).toBeNull();
+	});
+
+	it('sizes dynamic text items like the create canvas', () => {
+		expect(getDynamicDisplayItemSize({ text: 'short' })).toEqual({ width: 80, height: 40 });
+		expect(getDynamicDisplayItemSize({ text: 'a longer text-only item' })).toEqual({
+			width: 208,
+			height: 40
+		});
+		expect(getDynamicDisplayItemSize({ image: 'image.png' })).toEqual({ width: 128, height: 128 });
+	});
+
+	it('keeps resized dynamic text readable', () => {
+		expect(getDynamicTextDisplayStyle({ text: 'large', size: { width: 200, height: 80 } })).toBe(
+			'font-size: 32px; line-height: 38px;'
+		);
 	});
 });

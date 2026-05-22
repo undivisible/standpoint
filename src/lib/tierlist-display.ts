@@ -47,3 +47,55 @@ export function normalizeTierlistDate(value: unknown): Date | null {
 	const date = new Date(String(value));
 	return Number.isNaN(date.getTime()) ? null : date;
 }
+
+type DynamicDisplayItem = {
+	text?: string;
+	image?: string | null;
+	size?: { width: number; height: number };
+	naturalSize?: { width: number; height: number };
+};
+
+export function getDynamicDisplayItemSize(item: DynamicDisplayItem): {
+	width: number;
+	height: number;
+} {
+	if (item.size) return item.size;
+
+	if (item.image && item.naturalSize) {
+		const scale = Math.min(200 / item.naturalSize.width, 200 / item.naturalSize.height, 1);
+		return {
+			width: item.naturalSize.width * scale,
+			height: item.naturalSize.height * scale
+		};
+	}
+
+	if (item.image) return { width: 128, height: 128 };
+
+	const textLength = item.text?.length || 0;
+	const minWidth = 80;
+	const charWidth = 8;
+	const padding = 24;
+	return {
+		width: Math.max(minWidth, Math.min(textLength * charWidth + padding, 300)),
+		height: 40
+	};
+}
+
+export function getDynamicTextDisplayStyle(item: DynamicDisplayItem) {
+	if (!item.size || item.image) return '';
+
+	const { width, height } = item.size;
+	const minFontSize = 10;
+	const maxFontSize = 32;
+
+	const textLength = item.text?.length || 1;
+	const avgCharWidth = 0.6;
+
+	const maxFontForWidth = (width * 0.9) / (textLength * avgCharWidth);
+	const maxFontForHeight = height * 0.4;
+
+	const optimalFontSize = Math.min(maxFontForWidth, maxFontForHeight);
+	const fontSize = Math.max(minFontSize, Math.min(maxFontSize, optimalFontSize));
+
+	return `font-size: ${Math.round(fontSize)}px; line-height: ${Math.round(fontSize * 1.2)}px;`;
+}

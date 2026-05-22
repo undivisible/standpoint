@@ -11,7 +11,12 @@
 	import { currentUser, userGroup } from '$lib/stores';
 	import { addToast } from '$lib/toast';
 	import { fadeImage } from '$lib/fadeImage';
-	import { dimHexColor, getContrastingLabelColor } from '$lib/tierlist-display';
+	import {
+		dimHexColor,
+		getContrastingLabelColor,
+		getDynamicDisplayItemSize,
+		getDynamicTextDisplayStyle
+	} from '$lib/tierlist-display';
 	import {
 		hasUserLikedTierlist,
 		likeTierlist,
@@ -56,6 +61,17 @@
 	let showComments = false;
 	let commentText = '';
 	let commentsList: any[] = [];
+
+	function resolveTierLabelColor(tier: any, fallbackColor: string) {
+		return (
+			tier.labelColor ||
+			tier.label_color ||
+			tier.label_colour ||
+			tier.textColor ||
+			tier.text_color ||
+			getContrastingLabelColor(dimHexColor(tier.color || fallbackColor))
+		);
+	}
 
 	// Responsive layout state
 	let windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
@@ -120,12 +136,7 @@
 					id: tier.name || tier.id || `tier-${index}`,
 					name: tier.name || `Tier ${index + 1}`,
 					color: tier.color || defaultColors[index % defaultColors.length],
-					labelColor:
-						tier.labelColor ||
-						tier.label_color ||
-						getContrastingLabelColor(
-							dimHexColor(tier.color || defaultColors[index % defaultColors.length])
-						),
+					labelColor: resolveTierLabelColor(tier, defaultColors[index % defaultColors.length]),
 					position: tier.position ?? index / Math.max(1, (found.tiers || []).length),
 					items: []
 				})
@@ -243,12 +254,7 @@
 				...tier,
 				id: tier.name || `tier-${index}`,
 				color: tier.color || defaultColors[index % defaultColors.length],
-				labelColor:
-					tier.labelColor ||
-					tier.label_color ||
-					getContrastingLabelColor(
-						dimHexColor(tier.color || defaultColors[index % defaultColors.length])
-					),
+				labelColor: resolveTierLabelColor(tier, defaultColors[index % defaultColors.length]),
 				items: []
 			}));
 
@@ -615,10 +621,11 @@
 
 	// Gets item size for dynamic mode
 	function getItemSize(item: TierItem): { width: number; height: number } {
-		if (item.size) return item.size;
+		return getDynamicDisplayItemSize(item);
+	}
 
-		// Default size for items without specified size
-		return { width: 120, height: 120 };
+	function getTextStyle(item: TierItem): string {
+		return getDynamicTextDisplayStyle(item);
 	}
 
 	function handleSidebarDelete(event: CustomEvent) {
@@ -923,7 +930,10 @@
 									{#if item.type === 'text' && !item.image}
 										<!-- Text items -->
 										<div class="absolute inset-0 z-10 flex items-center justify-center p-2">
-											<div class="text-center text-sm leading-tight font-medium text-white">
+											<div
+												class="text-center text-sm leading-tight font-medium text-white"
+												style={getTextStyle(item)}
+											>
 												{item.text}
 											</div>
 										</div>
