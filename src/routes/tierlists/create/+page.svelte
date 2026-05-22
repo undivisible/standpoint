@@ -132,7 +132,13 @@
 
 	function togglePublishMenu(e?: MouseEvent) {
 		if (e) e.stopPropagation();
-		showPublishMenu = !showPublishMenu;
+		const next = !showPublishMenu;
+		showPublishMenu = next;
+		if (next) {
+			setTimeout(() => {
+				showPublishMenu = true;
+			}, 0);
+		}
 	}
 
 	function handleOutsideClick(e: MouseEvent) {
@@ -2042,7 +2048,7 @@
 	{/if}
 	<!-- Header -->
 	<div
-		class="theme-transition relative z-10 flex min-h-[56px] items-center justify-between border-b px-6 py-4"
+		class="theme-transition relative z-[1000] flex min-h-[56px] items-center justify-between border-b px-6 py-4"
 		style="border-color: var(--border); background-color: rgba(0, 0, 0, 0.8);"
 		in:fade={{ duration: 400 }}
 		out:fade={{ duration: 200 }}
@@ -2180,7 +2186,7 @@
 						>
 					{/if}
 				{/if}
-				<div class="relative ml-auto flex items-center" bind:this={publishWrapper}>
+				<div class="relative z-[1100] ml-auto flex items-center" bind:this={publishWrapper}>
 					{#if publishing && uploadingImages}
 						<div class="absolute inset-0 -z-10 overflow-hidden">
 							<div class="h-full w-full bg-gray-700/40"></div>
@@ -2218,7 +2224,7 @@
 							</span>
 						</button>
 						{#if showPublishMenu}
-							<div class="absolute top-full right-0 z-30 flex w-56 flex-col text-sm shadow-xl">
+							<div class="absolute top-full right-0 z-[1200] flex w-56 flex-col text-sm shadow-xl">
 								<button
 									class="flex items-center gap-2 bg-green-600 px-3 py-2 text-left hover:bg-green-500"
 									on:click={(e) => {
@@ -2483,7 +2489,7 @@
 				<!-- Dynamic Canvas -->
 				{#key `${gradientVersion}-${gradientSignature}`}
 					<div
-						class="dynamic-canvas relative flex-1 cursor-crosshair overflow-hidden"
+						class="dynamic-canvas relative isolate z-0 flex-1 cursor-crosshair overflow-hidden"
 						style="{dynamicGradientStyle} background-size: 100% 100%; min-height: 600px;"
 						on:click={(e) => {
 							const rect = e.currentTarget.getBoundingClientRect();

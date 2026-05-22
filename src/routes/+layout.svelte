@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import { page } from '$app/stores';
 	import Header from '../components/header.svelte';
 	import Onboarding from '../components/onboarding.svelte';
 	let { children } = $props();
@@ -55,8 +56,10 @@
 </svelte:head>
 
 <main class="h-full w-full font-sans" style="background-color: var(--bg, #000000);">
-	<Header />
-	{#if $navHoverStore}
+	{#if !$page.url.pathname.startsWith('/tierlists/create')}
+		<Header />
+	{/if}
+	{#if $navHoverStore && !$page.url.pathname.startsWith('/tierlists/create')}
 		<div
 			class="pointer-events-none fixed inset-0 z-40 opacity-90"
 			style="background-color: var(--bg, #000000);"
