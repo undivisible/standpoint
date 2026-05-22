@@ -70,7 +70,9 @@
 		{@render children()}
 	</div>
 
-	<Onboarding bind:show={showOnboarding} on:complete={handleOnboardingComplete} />
+	{#if !$page.url.pathname.startsWith('/tierlists/create')}
+		<Onboarding bind:show={showOnboarding} on:complete={handleOnboardingComplete} />
+	{/if}
 </main>
 
 <style>
