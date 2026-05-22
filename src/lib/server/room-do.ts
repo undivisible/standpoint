@@ -170,8 +170,12 @@ export class RoomDO {
 			const id = room.id;
 			try {
 				await this.env.DB.prepare('DELETE FROM standpoint_rounds WHERE room_id = ?').bind(id).run();
-				await this.env.DB.prepare('DELETE FROM standpoint_room_scores WHERE room_id = ?').bind(id).run();
-				await this.env.DB.prepare('DELETE FROM standpoint_room_players WHERE room_id = ?').bind(id).run();
+				await this.env.DB.prepare('DELETE FROM standpoint_room_scores WHERE room_id = ?')
+					.bind(id)
+					.run();
+				await this.env.DB.prepare('DELETE FROM standpoint_room_players WHERE room_id = ?')
+					.bind(id)
+					.run();
 				await this.env.DB.prepare('DELETE FROM standpoint_rooms WHERE id = ?').bind(id).run();
 			} catch {
 				/* best-effort */
@@ -263,7 +267,10 @@ export class RoomDO {
 		}));
 
 		const psychicIndex = round
-			? Math.max(0, players.findIndex((player) => player.id === round.psychic_id))
+			? Math.max(
+					0,
+					players.findIndex((player) => player.id === round.psychic_id)
+				)
 			: 0;
 
 		const activePhase =
@@ -453,7 +460,9 @@ export class RoomDO {
 	private async beginRound(incrementRound: boolean) {
 		const room = this.requireRoom();
 		if (!incrementRound && room.currentRoundId) {
-			await this.env.DB.prepare('DELETE FROM standpoint_rounds WHERE id = ?').bind(room.currentRoundId).run();
+			await this.env.DB.prepare('DELETE FROM standpoint_rounds WHERE id = ?')
+				.bind(room.currentRoundId)
+				.run();
 		}
 
 		const connected = this.connectedPlayers();
@@ -687,8 +696,7 @@ export class RoomDO {
 
 		const lastPsychicId = room.psychicHistory.at(-1);
 		const wasPsychicMidRound =
-			lastPsychicId === cleanId &&
-			(room.phase === 'psychic_clue' || room.phase === 'guessing');
+			lastPsychicId === cleanId && (room.phase === 'psychic_clue' || room.phase === 'guessing');
 
 		for (const s of this.wsSet) {
 			if (this.playerSockets.get(s) === cleanId) {
@@ -707,7 +715,9 @@ export class RoomDO {
 		room.players = room.players.filter((p) => p.id !== cleanId);
 		room.guesses.delete(cleanId);
 		room.scores.delete(cleanId);
-		await this.env.DB.prepare('DELETE FROM standpoint_room_scores WHERE room_id = ? AND player_id = ?')
+		await this.env.DB.prepare(
+			'DELETE FROM standpoint_room_scores WHERE room_id = ? AND player_id = ?'
+		)
 			.bind(room.id, cleanId)
 			.run();
 
@@ -719,7 +729,9 @@ export class RoomDO {
 		await this.env.DB.prepare('DELETE FROM standpoint_rounds WHERE room_id = ? AND psychic_id = ?')
 			.bind(room.id, cleanId)
 			.run();
-		await this.env.DB.prepare('DELETE FROM standpoint_room_players WHERE id = ?').bind(cleanId).run();
+		await this.env.DB.prepare('DELETE FROM standpoint_room_players WHERE id = ?')
+			.bind(cleanId)
+			.run();
 
 		this.broadcast({ type: 'player_kicked', playerId: cleanId });
 		this.broadcastSnapshots();
@@ -732,8 +744,7 @@ export class RoomDO {
 		const playerId = this.requirePlayer(ws);
 		const psychic = this.currentPsychic();
 		const host = this.isHost(ws);
-		const psychicAxes =
-			room.phase === 'psychic_clue' && psychic?.id === playerId && !room.clue;
+		const psychicAxes = room.phase === 'psychic_clue' && psychic?.id === playerId && !room.clue;
 
 		if (!host && !psychicAxes) {
 			throw new Error('Only the host can change game settings.');

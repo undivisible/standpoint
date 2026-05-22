@@ -908,17 +908,17 @@
 										{#each themes as theme (theme.id)}
 											<button
 												type="button"
-										on:click={() => {
-												themeForm.theme = theme.id;
-												currentTheme.setTheme(theme.id);
-												// Persist to the user profile so the choice survives a
-												// fresh load (where SSR data wins over localStorage).
-												if ($currentUser) {
-													updateUserProfile($currentUser.uid, { theme: theme.id }).catch(
-														(err) => console.warn('Failed to persist theme', err)
-													);
-												}
-											}}
+												on:click={() => {
+													themeForm.theme = theme.id;
+													currentTheme.setTheme(theme.id);
+													// Persist to the user profile so the choice survives a
+													// fresh load (where SSR data wins over localStorage).
+													if ($currentUser) {
+														updateUserProfile($currentUser.uid, { theme: theme.id }).catch((err) =>
+															console.warn('Failed to persist theme', err)
+														);
+													}
+												}}
 												class="group relative overflow-hidden border-2 p-4 text-left transition-all hover:scale-105 {themeForm.theme ===
 												theme.id
 													? 'border-[rgb(var(--primary))] shadow-lg shadow-[rgb(var(--primary))]/30'

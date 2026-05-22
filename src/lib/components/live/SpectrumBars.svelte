@@ -79,7 +79,8 @@
 	}
 
 	$: displayGuess = value ?? guessValue;
-	$: showZones = targetValue !== null && (mode === 'psychic' || mode === 'reveal' || showScoringBands);
+	$: showZones =
+		targetValue !== null && (mode === 'psychic' || mode === 'reveal' || showScoringBands);
 
 	function clamp(next: number) {
 		return Math.max(0, Math.min(100, next));
@@ -120,7 +121,12 @@
 		(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
 	}
 
-	function ringChunkStyle(center: number, inner: number, outer: number, side: 'left' | 'right' | 'center'): string {
+	function ringChunkStyle(
+		center: number,
+		inner: number,
+		outer: number,
+		side: 'left' | 'right' | 'center'
+	): string {
 		const c = clamp(center);
 		if (side === 'center') {
 			const left = clamp(c - outer);
@@ -187,10 +193,7 @@
 >
 	{#if showZones}
 		{#each scoringChunks as chunk (chunk.key)}
-			<div
-				class="zone"
-				style={`${chunk.style} --zone-color:${chunk.color}; z-index:${chunk.z};`}
-			>
+			<div class="zone" style={`${chunk.style} --zone-color:${chunk.color}; z-index:${chunk.z};`}>
 				<span class="zone-label">{chunk.label}</span>
 			</div>
 		{/each}
@@ -320,13 +323,12 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background:
-			linear-gradient(
-				180deg,
-				color-mix(in srgb, var(--zone-color) 70%, transparent) 0%,
-				color-mix(in srgb, var(--zone-color) 90%, transparent) 50%,
-				color-mix(in srgb, var(--zone-color) 70%, transparent) 100%
-			);
+		background: linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--zone-color) 70%, transparent) 0%,
+			color-mix(in srgb, var(--zone-color) 90%, transparent) 50%,
+			color-mix(in srgb, var(--zone-color) 70%, transparent) 100%
+		);
 		box-shadow:
 			inset 1px 0 0 rgba(255, 255, 255, 0.25),
 			inset -1px 0 0 rgba(0, 0, 0, 0.45);

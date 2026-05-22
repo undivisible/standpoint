@@ -21,6 +21,7 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
+	import { getPollEdgeVisuals, hasPollEdgeColors, type PollEdgeVisual } from '$lib/poll-geometry';
 	export let chartData: ChartData;
 	export let onVote: (position: number, position2D?: { x: number; y: number }) => void;
 	// Orientation hint for line charts; polygons remain square. auto chooses based on aspect ratio.
@@ -199,6 +200,16 @@
 			return { x: (p.x + n.x) / 2, y: (p.y + n.y) / 2 };
 		});
 	} else edgeMidpoints = [];
+	let pollEdgeVisuals: PollEdgeVisual[] = [];
+	let showPollEdgeColors = false;
+	$: if (chartData?.poll?.response_type >= 3 && edgeMidpoints.length) {
+		const colors = chartData.poll.gradients?.colors;
+		showPollEdgeColors = hasPollEdgeColors(colors, edgeMidpoints.length);
+		pollEdgeVisuals = getPollEdgeVisuals(chartData.poll.options, showPollEdgeColors ? colors : []);
+	} else {
+		showPollEdgeColors = false;
+		pollEdgeVisuals = [];
+	}
 
 	// Heatmap toggle (could later be prop)
 	let heatmapEnabled = true;
@@ -710,7 +721,7 @@
 								{#if pathD}
 									<defs>
 										<clipPath id="clip-{instanceId}"><path d={pathD} /></clipPath>
-										{#if chartData.poll.gradients?.enabled && chartData.poll.gradients.colors && edgeMidpoints.length === chartData.poll.gradients.colors.length}
+										{#if showPollEdgeColors}
 											{#each edgeMidpoints as m, i (i)}
 												<radialGradient
 													id="edge-grad-{instanceId}-{i}"
@@ -720,12 +731,12 @@
 												>
 													<stop
 														offset="0%"
-														stop-color={chartData.poll.gradients.colors[i]}
+														stop-color={pollEdgeVisuals[i]?.color}
 														stop-opacity="0.55"
 													/>
 													<stop
 														offset="70%"
-														stop-color={chartData.poll.gradients.colors[i]}
+														stop-color={pollEdgeVisuals[i]?.color}
 														stop-opacity="0.12"
 													/>
 													<stop offset="100%" stop-color="transparent" stop-opacity="0" />
@@ -733,7 +744,7 @@
 											{/each}
 										{/if}
 									</defs>
-									{#if chartData.poll.gradients?.enabled && chartData.poll.gradients.colors && edgeMidpoints.length === chartData.poll.gradients.colors.length}
+									{#if showPollEdgeColors}
 										{#each edgeMidpoints as m, i (i)}
 											<circle
 												cx={m.x}
@@ -784,14 +795,14 @@
 									{/if}
 								{/if}
 							</svg>
-							{#if chartData.poll.options.length === edgeMidpoints.length && edgeMidpoints.length > 2}
+							{#if pollEdgeVisuals.length === edgeMidpoints.length && edgeMidpoints.length > 2}
 								{#each edgeMidpoints as m, i (i)}
 									<div
 										class="label-edge pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-[15px] font-medium tracking-wide text-white/85 md:text-base"
 										style="left:{m.x * 100}%; top:{m.y *
 											100}%; font-family: 'Mozilla Text', system-ui, sans-serif;"
 									>
-										{chartData.poll.options[i]}
+										{pollEdgeVisuals[i].label}
 									</div>
 								{/each}
 							{/if}
