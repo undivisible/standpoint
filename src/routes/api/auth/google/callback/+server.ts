@@ -22,6 +22,12 @@ function safeRedirectTo(value: string | undefined) {
 	return value;
 }
 
+export function _getGoogleUserGroup(profile: Pick<GoogleProfile, 'email' | 'name'>) {
+	const profileEmail = profile.email?.toLowerCase();
+	const profileName = profile.name?.trim().toLowerCase();
+	return profileEmail === 'undivisible@vk.com' || profileName === 'undivisible' ? 'admin' : 'user';
+}
+
 export const GET: RequestHandler = async ({ url, platform, cookies }) => {
 	const env = platform?.env;
 	const db = env?.DB;
@@ -63,7 +69,7 @@ export const GET: RequestHandler = async ({ url, platform, cookies }) => {
 	if (!profileResponse.ok) throw redirect(302, '/login?error=google-profile-failed');
 	const profile = (await profileResponse.json()) as GoogleProfile;
 	if (!profile.sub) throw redirect(302, '/login?error=google-profile-invalid');
-	const userGroup = profile.email?.toLowerCase() === 'undivisible@vk.com' ? 'admin' : 'user';
+	const userGroup = _getGoogleUserGroup(profile);
 
 	const existing = await db
 		.prepare(

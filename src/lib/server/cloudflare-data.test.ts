@@ -48,7 +48,7 @@ describe('cloudflare data mapping', () => {
 				id: 'tierlist_1',
 				title: 'Breakfast',
 				owner: 'user_1',
-				tiers_json: '[{"name":"S"}]',
+				tiers_json: '[{"name":"S","labelColor":"#000000","label_color":"#000000"}]',
 				items_json: '[{"id":"item_1"}]',
 				placements_json: '[]',
 				is_forked: 0,
@@ -58,8 +58,30 @@ describe('cloudflare data mapping', () => {
 			})
 		).toMatchObject({
 			id: 'tierlist_1',
-			tiers: [{ name: 'S' }],
+			tiers: [{ name: 'S', labelColor: '#000000', label_color: '#000000' }],
 			items: [{ id: 'item_1' }]
+		});
+	});
+
+	it('maps tierlist owner display names from joined user rows', () => {
+		expect(
+			mapTierlist({
+				id: 'tierlist_1',
+				title: 'Breakfast',
+				owner: 'user_1',
+				owner_display_name: 'Ada',
+				tiers_json: '[]',
+				items_json: '[]',
+				placements_json: '[]',
+				is_forked: 0,
+				is_guest: 0,
+				status: 'published',
+				visibility: 'public'
+			})
+		).toMatchObject({
+			owner: 'user_1',
+			owner_displayName: 'Ada',
+			author: 'Ada'
 		});
 	});
 

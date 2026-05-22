@@ -53,7 +53,9 @@ async function getPoll(database: D1Database, id: string) {
 
 async function getTierlist(database: D1Database, id: string) {
 	const row = await database
-		.prepare('SELECT * FROM tierlists WHERE id = ?')
+		.prepare(
+			'SELECT tierlists.*, users.display_name AS owner_display_name FROM tierlists LEFT JOIN users ON users.uid = tierlists.owner WHERE tierlists.id = ?'
+		)
 		.bind(id)
 		.first<Record<string, unknown>>();
 	return row ? mapTierlist(row) : null;
@@ -211,21 +213,29 @@ export const GET: RequestHandler = async ({ params, platform, url }) => {
 		const originalId = url.searchParams.get('originalId');
 		const rows = originalId
 			? await database
-					.prepare('SELECT * FROM tierlists WHERE original_id = ? ORDER BY created_at DESC LIMIT ?')
+					.prepare(
+						'SELECT tierlists.*, users.display_name AS owner_display_name FROM tierlists LEFT JOIN users ON users.uid = tierlists.owner WHERE original_id = ? ORDER BY tierlists.created_at DESC LIMIT ?'
+					)
 					.bind(originalId, limit(url))
 					.all<Record<string, unknown>>()
 			: owner
 				? await database
-						.prepare('SELECT * FROM tierlists WHERE owner = ? ORDER BY created_at DESC LIMIT ?')
+						.prepare(
+							'SELECT tierlists.*, users.display_name AS owner_display_name FROM tierlists LEFT JOIN users ON users.uid = tierlists.owner WHERE owner = ? ORDER BY tierlists.created_at DESC LIMIT ?'
+						)
 						.bind(owner, limit(url))
 						.all<Record<string, unknown>>()
 				: status
 					? await database
-							.prepare('SELECT * FROM tierlists WHERE status = ? ORDER BY created_at DESC LIMIT ?')
+							.prepare(
+								'SELECT tierlists.*, users.display_name AS owner_display_name FROM tierlists LEFT JOIN users ON users.uid = tierlists.owner WHERE status = ? ORDER BY tierlists.created_at DESC LIMIT ?'
+							)
 							.bind(status, limit(url))
 							.all<Record<string, unknown>>()
 					: await database
-							.prepare('SELECT * FROM tierlists ORDER BY created_at DESC LIMIT ?')
+							.prepare(
+								'SELECT tierlists.*, users.display_name AS owner_display_name FROM tierlists LEFT JOIN users ON users.uid = tierlists.owner ORDER BY tierlists.created_at DESC LIMIT ?'
+							)
 							.bind(limit(url))
 							.all<Record<string, unknown>>();
 		return json({ items: (rows.results || []).map(mapTierlist) });
@@ -360,7 +370,9 @@ export const GET: RequestHandler = async ({ params, platform, url }) => {
 		const [tierlists, polls, users] = await Promise.all([
 			kind === 'all' || kind === 'tierlists'
 				? database
-						.prepare('SELECT * FROM tierlists WHERE status = ? ORDER BY created_at DESC LIMIT 100')
+						.prepare(
+							'SELECT tierlists.*, users.display_name AS owner_display_name FROM tierlists LEFT JOIN users ON users.uid = tierlists.owner WHERE status = ? ORDER BY tierlists.created_at DESC LIMIT 100'
+						)
 						.bind('published')
 						.all<Record<string, unknown>>()
 				: Promise.resolve({ results: [] }),

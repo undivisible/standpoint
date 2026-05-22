@@ -28,6 +28,7 @@
 	$: googleSignInHref = `/api/auth/google/start?redirectTo=${encodeURIComponent(
 		$page.url.pathname + $page.url.search
 	)}`;
+	$: hideProfileMenu = $page.url.pathname.startsWith('/tierlists/create');
 	$: if ($page.url.pathname === '/search') {
 		const pageQuery = $page.url.searchParams.get('q') || '';
 		if (
@@ -347,33 +348,35 @@
 						</div>
 					{/if}
 				</a>
-				<!-- Settings button on hover -->
-				<div
-					class="absolute top-0 right-full z-50 flex h-full origin-right scale-x-95 items-stretch justify-end opacity-0 transition-all duration-300 group-focus-within:scale-x-100 group-focus-within:opacity-100 group-hover:scale-x-100 group-hover:opacity-100"
-				>
-					<a
-						href="/tierlists/drafts"
-						class="flex h-full items-center gap-2 border border-gray-300 bg-gray-100 px-4 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-200"
+				{#if !hideProfileMenu}
+					<!-- Settings button on hover -->
+					<div
+						class="absolute top-0 right-full z-50 flex h-full origin-right scale-x-95 items-stretch justify-end opacity-0 transition-all duration-300 group-focus-within:scale-x-100 group-focus-within:opacity-100 group-hover:scale-x-100 group-hover:opacity-100"
 					>
-						<span class="material-symbols-outlined text-lg">draft</span>
-						Drafts
-					</a>
-					<a
-						href="/settings"
-						class="flex h-full items-center gap-2 border border-gray-300 bg-white px-4 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
-					>
-						<span class="material-symbols-outlined text-lg">settings</span>
-						Settings
-					</a>
-					<button
-						type="button"
-						class="flex h-full items-center gap-2 border border-gray-300 bg-[rgb(var(--primary))] px-4 font-medium text-white shadow-sm transition-colors hover:brightness-110"
-						onclick={handleSignOut}
-					>
-						<span class="material-symbols-outlined text-lg">logout</span>
-						Sign out
-					</button>
-				</div>
+						<a
+							href="/tierlists/drafts"
+							class="flex h-full items-center gap-2 border border-gray-300 bg-gray-100 px-4 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-200"
+						>
+							<span class="material-symbols-outlined text-lg">draft</span>
+							Drafts
+						</a>
+						<a
+							href="/settings"
+							class="flex h-full items-center gap-2 border border-gray-300 bg-white px-4 font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
+						>
+							<span class="material-symbols-outlined text-lg">settings</span>
+							Settings
+						</a>
+						<button
+							type="button"
+							class="flex h-full items-center gap-2 border border-gray-300 bg-[rgb(var(--primary))] px-4 font-medium text-white shadow-sm transition-colors hover:brightness-110"
+							onclick={handleSignOut}
+						>
+							<span class="material-symbols-outlined text-lg">logout</span>
+							Sign out
+						</button>
+					</div>
+				{/if}
 			</div>
 		{:else}
 			<div class="flex h-full items-center justify-end gap-0">

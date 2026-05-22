@@ -48,6 +48,8 @@ export interface TierCreate {
 	name: string;
 	position: number;
 	color?: string;
+	labelColor?: string;
+	label_color?: string;
 	items?: TierItem[];
 }
 

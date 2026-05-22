@@ -141,12 +141,17 @@ export function mapPoll(input: unknown): any {
 export function mapTierlist(input: unknown): any {
 	const row = input as Record<string, any>;
 	const data = parseData<Record<string, unknown>>(row.data, {});
+	const ownerDisplayName =
+		row.owner_display_name || data.ownerDisplayName || data.owner_displayName || data.author;
 	return {
 		...data,
 		id: row.id,
 		title: row.title,
 		description: row.description,
 		owner: row.owner || 'anonymous',
+		owner_displayName: ownerDisplayName,
+		ownerDisplayName,
+		author: ownerDisplayName,
 		status: row.status,
 		visibility: row.visibility,
 		list_type: row.list_type,

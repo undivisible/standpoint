@@ -6,6 +6,44 @@ import { loadResultFromStorage, saveResultToStorage } from './storage';
 // API Keys
 const GOOGLE_SEARCH_API_KEY = import.meta.env?.VITE_GOOGLE_SEARCH_API_KEY;
 const GOOGLE_SEARCH_CX = import.meta.env?.VITE_GOOGLE_SEARCH_CX;
+const OPENVERSE_IMAGE_SEARCH_URL = 'https://api.openverse.engineering/v1/images/';
+
+type OpenverseImage = {
+	title?: string;
+	url?: string;
+	thumbnail?: string;
+	foreign_landing_url?: string;
+	creator?: string;
+	license?: string;
+	license_url?: string;
+};
+
+type OpenverseImageResponse = {
+	results?: OpenverseImage[];
+};
+
+export function buildOpenverseImageSearchUrl(query: string) {
+	const url = new URL(OPENVERSE_IMAGE_SEARCH_URL);
+	url.searchParams.set('q', query);
+	url.searchParams.set('page_size', '6');
+	url.searchParams.set('license_type', 'commercial,modification');
+	return url;
+}
+
+export function mapOpenverseImageResults(data: OpenverseImageResponse): ImageResult[] {
+	return (data.results || [])
+		.filter((item) => item.url)
+		.map((item) => ({
+			url: String(item.url),
+			title: item.title || 'Openverse image',
+			thumbnailLink: item.thumbnail || String(item.url),
+			link: item.foreign_landing_url,
+			snippet: [item.creator, item.license].filter(Boolean).join(' · '),
+			creator: item.creator,
+			license: item.license,
+			licenseUrl: item.license_url
+		}));
+}
 
 // Search for images related to the query using Google Custom Search API
 export async function searchForImages(query: string): Promise<ImageResult[]> {
@@ -18,31 +56,6 @@ export async function searchForImages(query: string): Promise<ImageResult[]> {
 			return [];
 		}
 		imageSearchLoading.set(true);
-		// Check if API keys are configured
-		if (
-			GOOGLE_SEARCH_API_KEY === 'YOUR_GOOGLE_SEARCH_API_KEY' ||
-			GOOGLE_SEARCH_CX === 'YOUR_GOOGLE_SEARCH_CX'
-		) {
-			console.warn('Google Search API keys not configured. Using fallback images.');
-			const fallbackImages = generateFallbackImages(query);
-			resultImages.set(fallbackImages);
-			return fallbackImages;
-		}
-
-		// Validate API key and CX format
-		if (!GOOGLE_SEARCH_API_KEY || GOOGLE_SEARCH_API_KEY.length < 20) {
-			console.warn('Invalid Google Search API key format. Using fallback images.');
-			const fallbackImages = generateFallbackImages(query);
-			resultImages.set(fallbackImages);
-			return fallbackImages;
-		}
-
-		if (!GOOGLE_SEARCH_CX || GOOGLE_SEARCH_CX.length < 10) {
-			console.warn('Invalid Google Search CX format. Using fallback images.');
-			const fallbackImages = generateFallbackImages(query);
-			resultImages.set(fallbackImages);
-			return fallbackImages;
-		}
 
 		// Check network status first (only in browser environment)
 		if (typeof window !== 'undefined') {
@@ -62,22 +75,13 @@ export async function searchForImages(query: string): Promise<ImageResult[]> {
 			}
 		}
 
-		// Construct the Google Custom Search API URL with proper parameters
-		const params = new URLSearchParams({
-			key: GOOGLE_SEARCH_API_KEY,
-			cx: GOOGLE_SEARCH_CX,
-			q: query,
-			searchType: 'image',
-			num: '6'
+		const response = await fetch(buildOpenverseImageSearchUrl(query), {
+			headers: { Accept: 'application/json' }
 		});
-
-		const apiUrl = `https://www.googleapis.com/customsearch/v1?${params.toString()}`;
-
-		const response = await fetch(apiUrl, { headers: { Accept: 'application/json' } });
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error(`Google Search API error ${response.status}:`, errorText);
+			console.error(`Openverse image search error ${response.status}:`, errorText);
 
 			// Try to parse error details
 			try {
@@ -89,15 +93,7 @@ export async function searchForImages(query: string): Promise<ImageResult[]> {
 				console.warn('Could not parse error response as JSON');
 			}
 
-			if (response.status === 403) {
-				console.warn('Google Search API quota exceeded or invalid API key - using fallback images');
-			} else if (response.status === 400) {
-				console.warn(
-					'Google Search API bad request (400) - check API key and CX format - using fallback images'
-				);
-			} else {
-				console.warn(`Image search API error: ${response.status} - using fallback images`);
-			}
+			console.warn(`Image search API error: ${response.status} - using fallback images`);
 			// Use fallback images when API fails
 			const fallbackImages = generateFallbackImages(query);
 			resultImages.set(fallbackImages);
@@ -107,14 +103,8 @@ export async function searchForImages(query: string): Promise<ImageResult[]> {
 
 		const data = await response.json();
 
-		let images: ImageResult[] = [];
-		if (data.items && data.items.length > 0) {
-			images = data.items.map((item: Record<string, unknown>) => ({
-				url: item.link,
-				title: item.title,
-				thumbnailLink:
-					(item.image && (item.image as { thumbnailLink?: string }).thumbnailLink) || item.link
-			}));
+		const images = mapOpenverseImageResults(data);
+		if (images.length > 0) {
 			resultImages.set(images);
 			await saveResultToStorage(query, images);
 		} else {
@@ -156,11 +146,6 @@ function generateFallbackImages(query: string): ImageResult[] {
 	const fallbackImages: ImageResult[] = [];
 
 	const imageServices = [
-		{
-			name: 'Unsplash',
-			getUrl: (q: string, size: string) =>
-				`https://source.unsplash.com/${size}/?${encodeURIComponent(q)}&sig=${Math.floor(Math.random() * 1000)}`
-		},
 		{
 			name: 'Picsum',
 			getUrl: (_q: string, size: string) => {

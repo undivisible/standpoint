@@ -12,6 +12,9 @@ export interface ImageResult {
 	image?: string;
 	link?: string;
 	snippet?: string;
+	creator?: string;
+	license?: string;
+	licenseUrl?: string;
 }
 
 // Store for holding image search results

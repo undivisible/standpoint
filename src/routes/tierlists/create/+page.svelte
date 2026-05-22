@@ -42,6 +42,7 @@
 		id: string;
 		name: string;
 		color: string;
+		labelColor: string;
 		items: TierItem[];
 	}
 
@@ -75,10 +76,10 @@
 		originalId: '',
 		unassignedItems: [],
 		tiers: [
-			{ id: 's', name: 'S', color: '#ff7f7f', items: [] },
-			{ id: 'a', name: 'A', color: '#ffbf7f', items: [] },
-			{ id: 'b', name: 'B', color: '#ffff7f', items: [] },
-			{ id: 'c', name: 'C', color: '#bfff7f', items: [] }
+			{ id: 's', name: 'S', color: '#ff7f7f', labelColor: '#000000', items: [] },
+			{ id: 'a', name: 'A', color: '#ffbf7f', labelColor: '#000000', items: [] },
+			{ id: 'b', name: 'B', color: '#ffff7f', labelColor: '#000000', items: [] },
+			{ id: 'c', name: 'C', color: '#bfff7f', labelColor: '#000000', items: [] }
 		]
 	};
 
@@ -189,6 +190,7 @@
 				id: `tier_${idx}_${crypto.randomUUID()}`,
 				name: t.name || `Tier ${idx + 1}`,
 				color: t.color || '#666666',
+				labelColor: t.labelColor || t.label_color || '#000000',
 				items: []
 			}));
 			const itemsArr: any[] = (data as any).items || [];
@@ -256,7 +258,9 @@
 					tiers: tierList.tiers.map((t, index) => ({
 						name: t.name,
 						position: index / tierList.tiers.length,
-						color: t.color
+						color: t.color,
+						labelColor: t.labelColor,
+						label_color: t.labelColor
 					})),
 					items: allItems.map((item) => ({
 						id: item.id,
@@ -311,7 +315,9 @@
 			tiers: tierList.tiers.map((t, index) => ({
 				name: t.name,
 				position: index / tierList.tiers.length,
-				color: t.color
+				color: t.color,
+				labelColor: t.labelColor,
+				label_color: t.labelColor
 			})),
 			items: allItems.map((item) => ({
 				id: item.id,
@@ -398,7 +404,9 @@
 					tiers: tierList.tiers.map((t, index) => ({
 						name: t.name,
 						position: index / tierList.tiers.length,
-						color: t.color
+						color: t.color,
+						labelColor: t.labelColor,
+						label_color: t.labelColor
 					})),
 					items: allItems.map((item) => ({
 						id: item.id,
@@ -494,7 +502,9 @@
 					tiers: tierList.tiers.map((t, index) => ({
 						name: t.name,
 						position: index / tierList.tiers.length,
-						color: t.color
+						color: t.color,
+						labelColor: t.labelColor,
+						label_color: t.labelColor
 					})),
 					items: allItems.map((item) => ({
 						id: item.id,
@@ -596,6 +606,7 @@
 	// Item management state
 	let targetTierId: string | null = null;
 	let targetPosition: number | null = null;
+	let targetCanvasPosition: { x: number; y: number } | null = null;
 	let newItemText = '';
 	let editingItemId: string | null = null;
 	let inlineEditText = '';
@@ -706,7 +717,13 @@
 		];
 
 		tierList.tiers = tierList.tiers.map(
-			(tier: { items: TierItem[]; id: string; name: string; color: string }) => ({
+			(tier: {
+				items: TierItem[];
+				id: string;
+				name: string;
+				color: string;
+				labelColor: string;
+			}) => ({
 				...tier,
 				items: []
 			})
@@ -1000,7 +1017,7 @@
 			tierList.title = draft.title;
 			tierList.type = draft.type;
 			tierList.bannerImage = draft.bannerImage || '';
-			tierList.tiers = draft.tiers;
+			tierList.tiers = draft.tiers.map((tier, index) => normalizeEditorTier(tier, index));
 			tierList.unassignedItems = draft.unassignedItems;
 			draftId = draft.id; // Use the same draft ID to continue saving
 			addToast('Draft loaded successfully', 'success');
@@ -1106,6 +1123,16 @@
 
 	// Tier Management
 
+	function normalizeEditorTier(tier: any, index: number): Tier {
+		return {
+			id: tier.id || `tier_${index}_${crypto.randomUUID()}`,
+			name: tier.name || `Tier ${index + 1}`,
+			color: tier.color || tierColors[index % tierColors.length],
+			labelColor: tier.labelColor || tier.label_color || '#000000',
+			items: tier.items || []
+		};
+	}
+
 	function toggleTitleEdit() {
 		editingTitle = !editingTitle;
 	}
@@ -1115,6 +1142,7 @@
 			id: `tier_${crypto.randomUUID()}`,
 			name: `Tier ${tierList.tiers.length + 1}`,
 			color: tierColors[tierList.tiers.length % tierColors.length],
+			labelColor: '#000000',
 			items: []
 		};
 		tierList.tiers = [...tierList.tiers, newTier];
@@ -1125,6 +1153,7 @@
 			id: `tier_${crypto.randomUUID()}`,
 			name: `Tier ${tierList.tiers.length + 1}`,
 			color: tierColors[tierList.tiers.length % tierColors.length],
+			labelColor: '#000000',
 			items: []
 		};
 		tierList.tiers.splice(position, 0, newTier);
@@ -1144,6 +1173,12 @@
 	function updateTierColor(tierId: string, color: string) {
 		tierList.tiers = tierList.tiers.map((tier) => (tier.id === tierId ? { ...tier, color } : tier));
 		closeColorPicker();
+	}
+
+	function updateTierLabelColor(tierId: string, labelColor: string) {
+		tierList.tiers = tierList.tiers.map((tier) =>
+			tier.id === tierId ? { ...tier, labelColor } : tier
+		);
 	}
 
 	// Modal Management
@@ -1171,10 +1206,12 @@
 	function openAddItemModal(
 		tierId: string | null = null,
 		position: number | null = null,
-		event?: MouseEvent | KeyboardEvent
+		event?: MouseEvent | KeyboardEvent,
+		canvasPosition: { x: number; y: number } | null = null
 	) {
 		targetTierId = tierId;
 		targetPosition = position;
+		targetCanvasPosition = canvasPosition;
 
 		const modalWidth = 350;
 		const modalHeight = 400; // Approximate modal height
@@ -1239,6 +1276,7 @@
 		showAddItemModal = false;
 		targetTierId = null;
 		targetPosition = null;
+		targetCanvasPosition = null;
 		addItemType = 'text';
 		clearTimeout(searchTimeout);
 		clearTimeout(scrollLoadTimeout);
@@ -1418,6 +1456,10 @@
 
 	function createItemPosition(tierId?: string): { x: number; y: number } | undefined {
 		if (tierList.type !== 'dynamic') return undefined;
+
+		if (targetCanvasPosition) {
+			return targetCanvasPosition;
+		}
 
 		if (tierId) {
 			const tierIndex = tierList.tiers.findIndex((t: Tier) => t.id === tierId);
@@ -1658,7 +1700,9 @@
 				tiers: tierList.tiers.map((tier: Tier, index: number) => ({
 					name: tier.name,
 					position: index / tierList.tiers.length,
-					color: tier.color
+					color: tier.color,
+					labelColor: tier.labelColor,
+					label_color: tier.labelColor
 				})),
 				items: allItems.map((item) => ({
 					id: item.id,
@@ -1701,7 +1745,7 @@
 				tierlistsArr.push(localRecord);
 				localStorage.setItem(LOCAL_STORAGE_TIERLISTS_KEY, JSON.stringify(tierlistsArr));
 			}
-			goto(`/tierlists/${newTierlistId}?local=true`);
+			goto(user ? `/tierlists/${newTierlistId}` : `/tierlists/${newTierlistId}?local=true`);
 		} catch (err) {
 			console.error('Error creating tier list:', err);
 			if (err instanceof Error) {
@@ -2079,6 +2123,14 @@
 					{/if}
 					{#if $currentUser}
 						<button
+							class="relative flex w-40 items-center gap-2 bg-gray-700 px-4 py-2 text-sm font-semibold tracking-wide text-white shadow transition-colors hover:bg-gray-600 disabled:opacity-50"
+							disabled={publishing}
+							on:click={publishLocalOnly}
+						>
+							<span class="material-symbols-outlined text-base">save</span>
+							{publishing ? 'SAVING...' : 'SAVE LOCALLY'}
+						</button>
+						<button
 							class="bg-accent relative flex w-56 items-center gap-2 px-4 py-2 text-sm font-semibold tracking-wide text-white shadow transition-colors hover:brightness-110 disabled:opacity-50"
 							disabled={publishing}
 							on:click={togglePublishMenu}
@@ -2117,16 +2169,6 @@
 									disabled={publishing}
 								>
 									<span class="material-symbols-outlined text-base">link_off</span> PUBLISH UNLISTED
-								</button>
-								<button
-									class="bg-accent/70 hover:bg-accent flex items-center gap-2 px-3 py-2 text-left"
-									on:click={(e) => {
-										e.stopPropagation();
-										publishLocalOnly();
-									}}
-									disabled={publishing}
-								>
-									<span class="material-symbols-outlined text-base">save</span> SAVE LOCALLY
 								</button>
 							</div>
 						{/if}
@@ -2186,15 +2228,17 @@
 							>
 								<div
 									class="pointer-events-auto flex flex-col items-end space-y-2"
-									style="color: {tier.color};"
+									style="color: {tier.labelColor};"
 								>
 									<!-- Tier Title -->
 									<input
 										class="cursor-text border-none bg-transparent text-right text-4xl font-bold placeholder-gray-300 outline-none"
-										style="color: {tier.color};"
+										style="color: {tier.labelColor};"
 										bind:value={tier.name}
 										placeholder="Tier"
+										on:mousedown|stopPropagation
 										on:click|stopPropagation
+										on:keydown|stopPropagation
 									/>
 
 									<!-- Hover Controls -->
@@ -2376,15 +2420,14 @@
 							const rect = e.currentTarget.getBoundingClientRect();
 							const x = (e.clientX - rect.left) / rect.width;
 							const y = (e.clientY - rect.top) / rect.height;
-							openAddItemModal(null, y, e);
+							openAddItemModal(null, y, e, { x, y });
 						}}
 						role="button"
 						tabindex="0"
 						on:keydown={(e) => {
 							if (e.key === 'Enter' || e.key === ' ') {
-								const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 								const y = 0.5;
-								openAddItemModal(null, y, e);
+								openAddItemModal(null, y, e, { x: 0.5, y });
 							}
 						}}
 					>
@@ -2400,12 +2443,13 @@
 								<div
 									class="group pointer-events-auto absolute top-0 right-4 z-10 flex h-full w-64 items-center justify-end"
 								>
-									<div class="flex flex-col items-end space-y-3" style="color: {tier.color};">
+									<div class="flex flex-col items-end space-y-3" style="color: {tier.labelColor};">
 										<input
 											class="cursor-text border-none bg-transparent text-right text-4xl font-bold placeholder-gray-300 outline-none"
-											style="color: {tier.color};"
+											style="color: {tier.labelColor};"
 											bind:value={tier.name}
 											placeholder="Tier"
+											on:mousedown|stopPropagation
 											on:click|stopPropagation
 											on:keydown|stopPropagation={(e) => {
 												// Prevent space / enter from triggering add item modal on canvas
@@ -2619,10 +2663,10 @@
 
 			<!-- Move to Tier -->
 			<div class="px-4 py-1 text-xs text-gray-400">Move to:</div>
-			{#each [{ id: null, name: 'Unassigned', color: '#fff' }, ...tierList.tiers] as tier}
+			{#each [{ id: null, name: 'Unassigned', color: '#fff', labelColor: '#fff' }, ...tierList.tiers] as tier}
 				<button
 					class="w-full px-4 py-2 text-left text-white transition-colors hover:bg-gray-700"
-					style="color: {tier.color};"
+					style="color: {tier.labelColor};"
 					on:click={() => {
 						if (contextMenuItem) {
 							moveItemToTier(contextMenuItem.id, tier.id);
@@ -3060,6 +3104,23 @@
 									const target = e.target as HTMLInputElement;
 									if (target && colorPickerTierId) {
 										updateTierColor(colorPickerTierId, target.value);
+									}
+								}}
+							/>
+						</div>
+						<div class="mt-4 space-y-3">
+							<label for="label-color-input" class="block text-sm font-medium text-gray-300"
+								>Label Color</label
+							>
+							<input
+								id="label-color-input"
+								type="color"
+								class="h-12 w-full border border-gray-600 bg-gray-700"
+								bind:value={currentTier.labelColor}
+								on:input={(e) => {
+									const target = e.target as HTMLInputElement;
+									if (target && colorPickerTierId) {
+										updateTierLabelColor(colorPickerTierId, target.value);
 									}
 								}}
 							/>

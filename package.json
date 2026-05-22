@@ -18,7 +18,9 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test:unit": "vitest --passWithNoTests",
-		"test": "bun run test:unit -- --run"
+		"test": "bun run test:unit -- --run",
+		"db:migrate:local": "wrangler d1 migrations apply standpoint-db --local",
+		"db:migrate:remote": "wrangler d1 migrations apply standpoint-db --remote"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",

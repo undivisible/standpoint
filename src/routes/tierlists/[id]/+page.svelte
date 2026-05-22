@@ -22,6 +22,7 @@
 		id: string;
 		name: string;
 		color: string;
+		labelColor: string;
 		position?: number;
 		items: TierItem[];
 	}
@@ -118,6 +119,7 @@
 					id: tier.name || tier.id || `tier-${index}`,
 					name: tier.name || `Tier ${index + 1}`,
 					color: tier.color || defaultColors[index % defaultColors.length],
+					labelColor: tier.labelColor || tier.label_color || '#000000',
 					position: tier.position ?? index / Math.max(1, (found.tiers || []).length),
 					items: []
 				})
@@ -230,14 +232,16 @@
 				'#ff7fff'
 			];
 
-			const transformedTiers: DisplayTier[] = response.tiers.map((tier: any, index: number) => ({
+			const responseTiers = response.tiers || [];
+			const transformedTiers: DisplayTier[] = responseTiers.map((tier: any, index: number) => ({
 				...tier,
 				id: tier.name || `tier-${index}`,
 				color: tier.color || defaultColors[index % defaultColors.length],
+				labelColor: tier.labelColor || tier.label_color || '#000000',
 				items: []
 			}));
 
-			const allItems: TierItem[] = response.items.map((item: any) => {
+			const allItems: TierItem[] = (response.items || []).map((item: any) => {
 				if (typeof item === 'string') {
 					return {
 						id: item,
@@ -258,10 +262,9 @@
 			});
 
 			if (response.item_placements && response.item_placements.length > 0) {
-				response.item_placements.forEach((placement: any, index: number) => {
+				response.item_placements.forEach((placement: any) => {
 					const item = allItems.find((item) => item.id === placement.item_id);
-					const tierByPosition = response.tiers[placement.tier_position];
-					const tier = transformedTiers.find((tier) => tier.name === tierByPosition?.name);
+					const tier = transformedTiers[placement.tier_position];
 
 					if (item && tier) {
 						if (response.list_type === 'dynamic') {
@@ -276,7 +279,7 @@
 						tier.items.push(item);
 					} else {
 						console.warn(
-							`❌ Failed to place item: item=${!!item}, tier=${!!tier}, tierByPosition=${tierByPosition?.name}`
+							`❌ Failed to place item: item=${!!item}, tier=${!!tier}, tierPosition=${placement.tier_position}`
 						);
 					}
 				});
@@ -314,7 +317,9 @@
 				list_type: response.list_type === 'dynamic' ? 'dynamic' : 'classic',
 				tiers: transformedTiers,
 				unassignedItems: unassignedItems,
-				author: response.owner_displayName || 'Anonymous',
+				author: response.owner_displayName || response.ownerDisplayName || 'Anonymous',
+				owner: response.owner,
+				owner_displayName: response.owner_displayName || response.ownerDisplayName,
 				created_at: response.created_at
 			};
 
@@ -472,6 +477,8 @@
 				tiers: tierList.tiers.map((tier) => ({
 					name: tier.name,
 					color: tier.color,
+					labelColor: tier.labelColor,
+					label_color: tier.labelColor,
 					position: tier.position || 0
 				})),
 				items: [
@@ -826,7 +833,7 @@
 								>
 									<div
 										class="text-center text-3xl leading-tight font-bold break-words md:text-4xl"
-										style="color:{tier.color};"
+										style="color:{tier.labelColor};"
 									>
 										{tier.name}
 									</div>
@@ -852,8 +859,8 @@
 								<div
 									class="pointer-events-auto absolute top-0 right-0 flex h-full w-64 items-center justify-end pr-8"
 								>
-									<div class="flex flex-col items-end space-y-3" style="color: {tier.color};">
-										<div class="text-right text-4xl font-bold" style="color: {tier.color};">
+									<div class="flex flex-col items-end space-y-3" style="color: {tier.labelColor};">
+										<div class="text-right text-4xl font-bold" style="color: {tier.labelColor};">
 											{tier.name}
 										</div>
 									</div>

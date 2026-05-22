@@ -16,7 +16,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
 			"font-src 'self' https://fonts.gstatic.com",
 			"img-src 'self' data: blob: https: http:",
-			"connect-src 'self' wss: https://*.googleapis.com https://*.google.com https://accounts.google.com https://oauth2.googleapis.com https://openidconnect.googleapis.com https://www.google-analytics.com https://region1.google-analytics.com https://cloudflareinsights.com https://static.cloudflareinsights.com",
+			"connect-src 'self' wss: https://api.openverse.engineering https://api.openverse.org https://*.googleapis.com https://*.google.com https://accounts.google.com https://oauth2.googleapis.com https://openidconnect.googleapis.com https://www.google-analytics.com https://region1.google-analytics.com https://cloudflareinsights.com https://static.cloudflareinsights.com",
 			"frame-src 'self' https://www.google.com",
 			"object-src 'none'",
 			"base-uri 'self'",
