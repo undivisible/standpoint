@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { TierlistData, PollData } from '$lib/firestore-re-export';
+	import type { TierlistData, PollData } from '../../lib/firestore-polls-tierlists.js';
 
 	export let data: {
 		query: string;

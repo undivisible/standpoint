@@ -5,7 +5,7 @@
 		publishTierlist,
 		updateTierlist,
 		type TierlistData
-	} from '$lib/firestore-re-export';
+	} from '../../lib/firestore-polls-tierlists.js';
 	import { addToast } from '$lib/toast';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';

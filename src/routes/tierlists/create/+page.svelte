@@ -11,7 +11,7 @@
 	import { uploadFile } from '$lib/cloudflare-api';
 	import { searchForImages } from '$lib/google-images';
 	import LoadingIndicator from '../../../components/loading-indicator.svelte';
-	import { imageSearchLoading } from '$lib';
+	import { imageSearchLoading } from '../../../lib/stores.js';
 	import { onMount } from 'svelte';
 	import LoginModal from '$lib/../components/login-modal.svelte';
 	import { goto } from '$app/navigation';

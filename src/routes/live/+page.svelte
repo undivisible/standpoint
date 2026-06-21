@@ -30,7 +30,7 @@
 		busy = true;
 		error = '';
 		try {
-			const response = await fetch('/api/live/rooms', {
+			const response = await fetch('/api/spectrum/rooms', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({

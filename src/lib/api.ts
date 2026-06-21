@@ -1,23 +1,19 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from './cloudflare-api';
 
-class ApiClient {
-	async healthCheck() {
-		return { status: 'ok', backend: 'cloudflare' };
-	}
-
-	async getPolls() {
+export const apiClient = {
+	getPolls() {
 		return apiGet<{ items: import('./types').PollResponse[] }>('polls');
-	}
+	},
 
-	async getPoll(id: string) {
+	getPoll(id: string) {
 		return apiGet<import('./types').PollResponse>(`polls/${id}`);
-	}
+	},
 
-	async createPoll(poll: import('./types').PollCreate) {
+	createPoll(poll: import('./types').PollCreate) {
 		return apiPost<{ id: string }>('polls', poll);
-	}
+	},
 
-	async vote(
+	vote(
 		pollId: string,
 		position: number,
 		additionalData?: import('./types').VoteCreate | Record<string, unknown>
@@ -26,36 +22,33 @@ class ApiClient {
 			`polls/${pollId}/votes`,
 			{ ...(additionalData || {}), position }
 		);
-	}
+	},
 
-	async deletePoll(pollId: string) {
+	deletePoll(pollId: string) {
 		return apiDelete(`polls/${pollId}`);
-	}
+	},
 
-	async getTierLists() {
+	getTierLists() {
 		return apiGet<{ items: import('./types').TierListResponse[] }>('tierlists');
-	}
+	},
 
-	async getTierList(id: string) {
+	getTierList(id: string) {
 		return apiGet<import('./types').TierListResponse>(`tierlists/${id}`);
-	}
+	},
 
-	async createTierList(tierList: import('./types').TierListCreate) {
+	createTierList(tierList: import('./types').TierListCreate) {
 		return apiPost<{ id: string }>('tierlists', tierList);
-	}
+	},
 
-	async updateTierListPlacements(tierListId: string, update: import('./types').TierListUpdate) {
+	updateTierListPlacements(tierListId: string, update: import('./types').TierListUpdate) {
 		return apiPatch<import('./types').TierListResponse>(`tierlists/${tierListId}`, update);
-	}
+	},
 
-	async deleteTierList(tierListId: string) {
+	deleteTierList(tierListId: string) {
 		return apiDelete(`tierlists/${tierListId}`);
-	}
+	},
 
-	async updateTierList(id: string, tierList: any) {
+	updateTierList(id: string, tierList: any) {
 		return apiPatch<import('./types').TierListResponse>(`tierlists/${id}`, tierList);
 	}
-}
-
-export const apiClient = new ApiClient();
-export { apiClient as default };
+};

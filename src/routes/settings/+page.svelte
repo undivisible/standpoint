@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { currentUser, refreshSession } from '$lib';
+	import { currentUser, refreshSession } from '../../lib/stores.js';
 	import { updateUserProfile, getUserProfile } from '$lib/user-profile';
 	import { accentColor, setAccent } from '$lib/accent';
-	import { createUserProfile } from '$lib';
+	import { createUserProfile } from '../../lib/user-profile.js';
 	import type { UserProfile } from '$lib/user-profile';
 	import { addToast } from '$lib/toast';
 	import { uploadProfileImage } from '$lib/storage';

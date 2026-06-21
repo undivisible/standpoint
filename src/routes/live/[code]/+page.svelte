@@ -28,7 +28,7 @@
 		loading = true;
 		error = '';
 		try {
-			const response = await fetch(`/api/live/rooms/${code}`);
+			const response = await fetch(`/api/spectrum/rooms/${code}`);
 			if (!response.ok) throw new Error(await response.text());
 			initialRoom = await response.json();
 			const saved = localStorage.getItem('standpointLiveName');

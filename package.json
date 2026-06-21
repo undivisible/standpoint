@@ -49,9 +49,7 @@
 		"vitest": "^3.0.0"
 	},
 	"dependencies": {
-		"@tailwindcss/cli": "^4.1.8",
 		"canvas-confetti": "^1.9.4",
-		"dotenv": "^17.4.2",
 		"wrangler": "^4.14.4"
 	},
 	"engines": {

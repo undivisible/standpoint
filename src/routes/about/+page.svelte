@@ -1,19 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { apiClient } from '$lib/api';
-
-	let backendStatus = 'checking';
-	let healthData: unknown = null;
-
-	onMount(async () => {
-		try {
-			healthData = await apiClient.healthCheck();
-			backendStatus = 'connected';
-		} catch (err) {
-			backendStatus = 'disconnected';
-			console.error('Backend health check failed:', err);
-		}
-	});
+	const backendStatus = 'connected';
 </script>
 
 <main class="grid min-h-screen grid-rows-2 gap-0">
@@ -48,11 +34,6 @@
 						? 'Disconnected'
 						: 'Checking...'}
 			</div>
-			{#if healthData && typeof healthData === 'object' && healthData !== null && 'message' in healthData}
-				<div class="text-lg text-white/70">
-					{(healthData as { message: string }).message}
-				</div>
-			{/if}
 		</div>
 	</div>
 
