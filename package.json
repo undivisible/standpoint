@@ -29,7 +29,7 @@
 		"@sveltejs/kit": "^2.59.1",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.0.0",
-		"@testing-library/jest-dom": "^6.6.3",
+		"@testing-library/jest-dom": "^7.0.1",
 		"@testing-library/svelte": "^5.2.4",
 		"@types/node": "^24.0.1",
 		"eslint": "^9.18.0",
